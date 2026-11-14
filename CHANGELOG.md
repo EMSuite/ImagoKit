@@ -6,6 +6,13 @@ Every number is held by regression tests against NumPy 2.5.4, SciPy 1.18.1 and s
 Entries from 0.8.1 on are written by release-please from the merged pull requests' titles. A moved fixture is listed under
 "Fixtures and tests" (a `test:` title, or one `test:` line per fixture in the pull request's commit override).
 
+## [0.10.1](https://github.com/macEMSuite/ImagoKit/compare/0.10.0...0.10.1) (2026-11-14)
+
+
+### Performance Improvements
+
+* a power spectrum of a real image peaks at half the memory ([#95](https://github.com/macEMSuite/ImagoKit/issues/95)) ([5fa69a3](https://github.com/macEMSuite/ImagoKit/commit/5fa69a37d88f40fa812653a9dbb4198584daf385))
+
 ## [0.10.0](https://github.com/macEMSuite/ImagoKit/compare/0.9.3...0.10.0) (2026-11-14)
 
 

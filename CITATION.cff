@@ -10,7 +10,7 @@ authors:
   - family-names: Lobpreis
     given-names: Paul
 license: GPL-3.0-only
-version: 0.10.0 # x-release-please-version
+version: 0.10.1 # x-release-please-version
 date-released: 2026-11-14 # x-release-please-date
 repository-code: "https://github.com/macEMSuite/ImagoKit"
 keywords:
