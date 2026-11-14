@@ -79,49 +79,59 @@ nonisolated package enum RealFFT2D {
         typealias S = P.Scalar
         let h = plan.ny, w = plan.nx, m = w / 2 + 1, pairs = (h + 1) / 2
         precondition(real.count == h * w)
-        let tr = Scratch<S>(pairs * w), ti = Scratch<S>(pairs * w)
-        let br = Scratch<S>(m * h), bi = Scratch<S>(m * h)
-        let cr = Scratch<S>(m * h), ci = Scratch<S>(m * h)
+        // At most two full-size arrays at once (ImagoKit#94): the row pass's packed scratch (about one) and the output, which
+        // first holds the split half spectra transposed (`m × h`); the row scratch is freed, the columns go into a second
+        // scratch, and it is transposed back into the output.
         var outRe = [S](repeating: 0, count: h * m), outIm = outRe
-        // Rows 2p and 2p + 1 are one complex row: the real input array itself serves as the real and the imaginary part.
-        real.withUnsafeBufferPointer { xb in
-            let x = xb.baseAddress!
-            if h >= 2 {
-                plan.transformLines(alongX: true, count: h / 2, forward: true, inputStride: 2 * w, x, x + w, tr.pointer, ti.pointer)
-            }
-            if h % 2 == 1 {
-                let zero = Scratch<S>(w, zero: true)
-                plan.transformLines(alongX: true, count: 1, forward: true, inputStride: w, x + (h - 1) * w, zero.pointer,
-                                    tr.pointer + (pairs - 1) * w, ti.pointer + (pairs - 1) * w)
-            }
-        }
-        // Split each pair into the two half spectra, written transposed (`m × h`): bin k of rows 2p and 2p + 1 is
-        // b[k * h + 2p] and b[k * h + 2p + 1].
-        let half = S(0.5)
-        var k0 = 0
-        while k0 < m {
-            let k1 = min(k0 + block, m)
-            for p in 0..<pairs {
-                let row = tr.pointer + p * w, rowI = ti.pointer + p * w
-                let hasB = 2 * p + 1 < h
-                for k in k0..<k1 {
-                    let j = k == 0 ? 0 : w - k
-                    let zre = row[k], zim = rowI[k], cre = row[j], cim = -rowI[j]
-                    let at = k * h + 2 * p
-                    br.pointer[at] = (zre + cre) * half
-                    bi.pointer[at] = (zim + cim) * half
-                    if hasB {
-                        br.pointer[at + 1] = (zim - cim) * half
-                        bi.pointer[at + 1] = (cre - zre) * half
-                    }
+        do {
+            let tr = Scratch<S>(pairs * w), ti = Scratch<S>(pairs * w)
+            // Rows 2p and 2p + 1 are one complex row: the real input array itself serves as the real and the imaginary part.
+            real.withUnsafeBufferPointer { xb in
+                let x = xb.baseAddress!
+                if h >= 2 {
+                    plan.transformLines(alongX: true, count: h / 2, forward: true, inputStride: 2 * w, x, x + w, tr.pointer, ti.pointer)
+                }
+                if h % 2 == 1 {
+                    let zero = Scratch<S>(w, zero: true)
+                    plan.transformLines(alongX: true, count: 1, forward: true, inputStride: w, x + (h - 1) * w, zero.pointer,
+                                        tr.pointer + (pairs - 1) * w, ti.pointer + (pairs - 1) * w)
                 }
             }
-            k0 = k1
+            // Split each pair into the two half spectra, written transposed (`m × h`): bin k of rows 2p and 2p + 1 is
+            // b[k * h + 2p] and b[k * h + 2p + 1].
+            let half = S(0.5)
+            outRe.withUnsafeMutableBufferPointer { brb in outIm.withUnsafeMutableBufferPointer { bib in
+                let br = brb.baseAddress!, bi = bib.baseAddress!
+                var k0 = 0
+                while k0 < m {
+                    let k1 = min(k0 + block, m)
+                    for p in 0..<pairs {
+                        let row = tr.pointer + p * w, rowI = ti.pointer + p * w
+                        let hasB = 2 * p + 1 < h
+                        for k in k0..<k1 {
+                            let j = k == 0 ? 0 : w - k
+                            let zre = row[k], zim = rowI[k], cre = row[j], cim = -rowI[j]
+                            let at = k * h + 2 * p
+                            br[at] = (zre + cre) * half
+                            bi[at] = (zim + cim) * half
+                            if hasB {
+                                br[at + 1] = (zim - cim) * half
+                                bi[at + 1] = (cre - zre) * half
+                            }
+                        }
+                    }
+                    k0 = k1
+                }
+            } }
         }
         // Complex lines down the m columns, then back to `h × m`.
-        plan.transformLines(alongX: false, count: m, forward: true, inputStride: nil, br.pointer, bi.pointer, cr.pointer, ci.pointer)
-        outRe.withUnsafeMutableBufferPointer { o in P.transpose(cr.pointer, o.baseAddress!, rows: m, columns: h) }
-        outIm.withUnsafeMutableBufferPointer { o in P.transpose(ci.pointer, o.baseAddress!, rows: m, columns: h) }
+        let cr = Scratch<S>(m * h), ci = Scratch<S>(m * h)
+        outRe.withUnsafeMutableBufferPointer { brb in outIm.withUnsafeMutableBufferPointer { bib in
+            let br = brb.baseAddress!, bi = bib.baseAddress!
+            plan.transformLines(alongX: false, count: m, forward: true, inputStride: nil, br, bi, cr.pointer, ci.pointer)
+            P.transpose(cr.pointer, br, rows: m, columns: h)
+            P.transpose(ci.pointer, bi, rows: m, columns: h)
+        } }
         return (outRe, outIm)
     }
 
