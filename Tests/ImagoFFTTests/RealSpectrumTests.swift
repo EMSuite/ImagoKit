@@ -84,3 +84,17 @@ func magnitudeIsTheRootOfPower(_ precision: Precision) throws {
     default: Issue.record("magnitude and power in different precisions")
     }
 }
+
+@Test(arguments: [(16, 8), (17, 9), (256, 64)], Precision.allCases)
+func identicalRowsHaveNoPowerOffTheCentreRow(_ size: (Int, Int), _ precision: Precision) throws {
+    // Every row the same: the transform is zero off the centre row. The real-input split leaves rounding residue there
+    // (3e-11 against a DC of 1.6e8 at 16 × 8, macEM#685); below u²·max |F|² it is not a resolved value and reads 0, as the
+    // complex transform gave, so the display draws it as no power. Red before: residue.
+    let (w, h) = size
+    let pixels = (0..<(w * h)).map { Float(100 + 10 * cos(2 * Double.pi * 3 * Double($0 % w) / Double(w))) }
+    let s = try PowerSpectrum.compute(Micrograph(width: w, height: h, pixels: pixels), precision: precision)
+    let off = (0..<h).filter { $0 != h / 2 }.flatMap { r in (0..<w).map { r * w + $0 } }
+    #expect(off.allSatisfy { s.power[$0] == 0 }, "\(w) × \(h): \(off.map { s.power[$0] }.max()!) off the centre row")
+    #expect(s.power[(h / 2) * w + w / 2] > 0, "the DC has power")
+    #expect(s.power[(h / 2) * w + w / 2 + 3] > 0, "the planted cosine has power")
+}

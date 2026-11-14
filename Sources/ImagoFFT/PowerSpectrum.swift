@@ -11,7 +11,8 @@
 //
 //  MEMORY (ImagoKit#94): the image is real, so the transform is the real-input one (NumPy's rfft2, `RealFFT2D`): the half
 //  spectrum, squared, mirrored into the centred full power by Hermitian symmetry (bin (r, c) is the conjugate of
-//  bin (−r, −c)). `magnitude` is computed from `power` when read. Two full-size arrays at the peak, one held; the complex
+//  bin (−r, −c)); a bin below u²·max |F|² (u the unit roundoff) is rounding residue and set to 0. `magnitude` is computed
+//  from `power` when read. Two full-size arrays at the peak, one held; the complex
 //  transform held four at its peak (the 375 MP alite SEM image, macEM#579).
 //
 
@@ -129,12 +130,23 @@ public nonisolated struct PowerSpectrum: Sendable {
         // |F|² of the half spectrum (half a full-size array beside the transform's one, which goes when this returns).
         let half: [P.Scalar] = {
             let (re, im) = plan.realForward(pixels)
-            return re.withUnsafeBufferPointer { r in im.withUnsafeBufferPointer { i in
+            var squared = re.withUnsafeBufferPointer { r in im.withUnsafeBufferPointer { i in
                 [P.Scalar](unsafeUninitializedCapacity: r.count) { out, n in
                     for k in 0..<r.count { out[k] = r[k] * r[k] + i[k] * i[k] }
                     n = r.count
                 }
             } }
+            // Bins below what the transform resolves are 0: |F|² under u²·max |F|² (u the unit roundoff, 2⁻²⁴ in Float32) is
+            // rounding residue. The real-input split leaves it where the complex transform of a noise-free image often gave
+            // exact zeros (identical rows, a pure lattice), and the display and spot finder read a zero as "no power"
+            // (macEM#685). Every pinned value moves by less than that, far inside the NumPy bands.
+            let largest = squared.max() ?? 0
+            let u = P.Scalar.ulpOfOne / 2
+            let floor = largest * u * u
+            if floor > 0 {
+                squared.withUnsafeMutableBufferPointer { b in for k in 0..<b.count where b[k] < floor { b[k] = 0 } }
+            }
+            return squared
         }()
         var power = [P.Scalar](repeating: 0, count: w * h)
         let shiftX = w - w / 2, shiftY = h - h / 2
