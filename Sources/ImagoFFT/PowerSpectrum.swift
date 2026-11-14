@@ -9,6 +9,11 @@
 //  anisotropic image has different spacings along x and y. Uncalibrated, d = 1 and the unit is "1/px". Nothing is
 //  windowed, padded or mean-removed.
 //
+//  MEMORY (ImagoKit#94): the image is real, so the transform is the real-input one (NumPy's rfft2, `RealFFT2D`): the half
+//  spectrum, squared, mirrored into the centred full power by Hermitian symmetry (bin (r, c) is the conjugate of
+//  bin (−r, −c)). `magnitude` is computed from `power` when read. Two full-size arrays at the peak, one held; the complex
+//  transform held four at its peak (the 375 MP alite SEM image, macEM#579).
+//
 
 import Foundation
 import ImagoCore
@@ -59,10 +64,15 @@ public nonisolated enum PowerSpectrumError: Error, Equatable, Sendable {
 public nonisolated struct PowerSpectrum: Sendable {
     public let width: Int
     public let height: Int
-    /// |F|, centred, row-major, x fastest; the zero frequency at (height/2, width/2).
-    public let magnitude: SpectrumValues
-    /// |F|², same layout.
+    /// |F|², centred, row-major, x fastest; the zero frequency at (height/2, width/2).
     public let power: SpectrumValues
+    /// |F| = √|F|², same layout; computed from `power` on each read (a full-size array: read it once).
+    public var magnitude: SpectrumValues {
+        switch power {
+        case .float32(let p): .float32(p.map { $0.squareRoot() })
+        case .float64(let p): .float64(p.map { $0.squareRoot() })
+        }
+    }
     /// The frequency at each column and row, in `unitsX` / `unitsY`.
     public let axisX: [Double]
     public let axisY: [Double]
@@ -87,26 +97,18 @@ public nonisolated struct PowerSpectrum: Sendable {
             source = image
         }
         let w = source.width, h = source.height
-        let magnitude: SpectrumValues, power: SpectrumValues
+        let power: SpectrumValues
         switch precision {
         case .float32:
             guard let fft = FFT2D(nx: w, ny: h) else { throw PowerSpectrumError.fftSetup(width: w, height: h) }
-            var re = source.pixels
-            var im = [Float](repeating: 0, count: w * h)
-            fft.transform(re: &re, im: &im, forward: true)
-            let (m, p) = centred(re, im, w: w, h: h)
-            (magnitude, power) = (.float32(m), .float32(p))
+            power = .float32(centredPower(fft, source.pixels, w: w, h: h))
         case .float64:
             guard let fft = FFT2DDouble(nx: w, ny: h) else { throw PowerSpectrumError.fftSetup(width: w, height: h) }
-            var re = source.pixels.map(Double.init)
-            var im = [Double](repeating: 0, count: w * h)
-            fft.transform(re: &re, im: &im, forward: true)
-            let (m, p) = centred(re, im, w: w, h: h)
-            (magnitude, power) = (.float64(m), .float64(p))
+            power = .float64(centredPower(fft, source.pixels.map(Double.init), w: w, h: h))
         }
         let (dx, ux) = LengthUnit.frequencySampling(source.x)
         let (dy, uy) = LengthUnit.frequencySampling(source.y)
-        return PowerSpectrum(width: w, height: h, magnitude: magnitude, power: power,
+        return PowerSpectrum(width: w, height: h, power: power,
                              axisX: frequencies(w, d: dx), axisY: frequencies(h, d: dy),
                              spacingX: 1.0 / (Double(w) * dx), spacingY: 1.0 / (Double(h) * dy),
                              unitsX: ux, unitsY: uy, crop: crop, precision: precision)
@@ -118,19 +120,41 @@ public nonisolated struct PowerSpectrum: Sendable {
         return (0..<n).map { Double($0 - n / 2) * val }
     }
 
-    /// fftshift: output (r, c) takes input ((r + h − h/2) mod h, (c + w − w/2) mod w), i.e. index n/2 is zero.
-    private static func centred<T: BinaryFloatingPoint>(_ re: [T], _ im: [T], w: Int, h: Int) -> ([T], [T]) {
-        var magnitude = [T](repeating: 0, count: w * h)
-        var power = [T](repeating: 0, count: w * h)
-        for r in 0..<h {
-            let sr = (r + h - h / 2) % h
-            for c in 0..<w {
-                let i = sr * w + (c + w - w / 2) % w
-                let p = re[i] * re[i] + im[i] * im[i]
-                power[r * w + c] = p
-                magnitude[r * w + c] = p.squareRoot()
+    /// The centred |F|² of the real `h × w` `pixels`: the half spectrum (`h × (w/2 + 1)`), squared, then fftshift with
+    /// the missing half mirrored. Output (r, c) takes bin (sr, sc) = ((r + h − h/2) mod h, (c + w − w/2) mod w), which for
+    /// sc > w/2 is the conjugate of the half spectrum's bin ((h − sr) mod h, w − sc): the same power. The self-mirrored
+    /// columns take one half of their rows from the other, so the result is exactly centrosymmetric.
+    static func centredPower<P: LineTransformPlan>(_ plan: P, _ pixels: [P.Scalar], w: Int, h: Int) -> [P.Scalar] {
+        let m = w / 2 + 1
+        // |F|² of the half spectrum (half a full-size array beside the transform's one, which goes when this returns).
+        let half: [P.Scalar] = {
+            let (re, im) = plan.realForward(pixels)
+            return re.withUnsafeBufferPointer { r in im.withUnsafeBufferPointer { i in
+                [P.Scalar](unsafeUninitializedCapacity: r.count) { out, n in
+                    for k in 0..<r.count { out[k] = r[k] * r[k] + i[k] * i[k] }
+                    n = r.count
+                }
+            } }
+        }()
+        var power = [P.Scalar](repeating: 0, count: w * h)
+        let shiftX = w - w / 2, shiftY = h - h / 2
+        half.withUnsafeBufferPointer { hb in
+            power.withUnsafeMutableBufferPointer { pb in
+                let src = hb.baseAddress!, dst = pb.baseAddress!
+                FFT2D.forEachBand(count: h, length: w, scratchCount: 0) { rows, _ in
+                    for r in rows {
+                        let sr = (r + shiftY) % h, mirror = (h - sr) % h
+                        let row = src + sr * m, mirrored = src + mirror * m, out = dst + r * w
+                        for c in 0..<w {
+                            // Columns 0 and (even w) w/2 are their own mirror: the lower rows read the upper rows' bins
+                            // too, so every bin equals its mirror bit for bit.
+                            let sc = (c + shiftX) % w, msc = (w - sc) % w
+                            out[c] = sc < m && !(sc == msc && sr > mirror) ? row[sc] : mirrored[msc]
+                        }
+                    }
+                }
             }
         }
-        return (magnitude, power)
+        return power
     }
 }
