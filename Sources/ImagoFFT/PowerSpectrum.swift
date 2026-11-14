@@ -10,7 +10,7 @@
 //  windowed, padded or mean-removed.
 //
 //  MEMORY (ImagoKit#94): the image is real, so the transform is the real-input one (NumPy's rfft2, `RealFFT2D`): the half
-//  spectrum, squared in place, mirrored into the centred full power by Hermitian symmetry (bin (r, c) is the conjugate of
+//  spectrum, squared, mirrored into the centred full power by Hermitian symmetry (bin (r, c) is the conjugate of
 //  bin (−r, −c)). `magnitude` is computed from `power` when read. Two full-size arrays at the peak, one held; the complex
 //  transform held four at its peak (the 375 MP alite SEM image, macEM#579).
 //
@@ -120,21 +120,22 @@ public nonisolated struct PowerSpectrum: Sendable {
         return (0..<n).map { Double($0 - n / 2) * val }
     }
 
-    /// The centred |F|² of the real `h × w` `pixels`: the half spectrum (`h × (w/2 + 1)`), squared in place, then fftshift with
+    /// The centred |F|² of the real `h × w` `pixels`: the half spectrum (`h × (w/2 + 1)`), squared, then fftshift with
     /// the missing half mirrored. Output (r, c) takes bin (sr, sc) = ((r + h − h/2) mod h, (c + w − w/2) mod w), which for
-    /// sc > w/2 is the conjugate of the half spectrum's bin ((h − sr) mod h, w − sc): the same power.
+    /// sc > w/2 is the conjugate of the half spectrum's bin ((h − sr) mod h, w − sc): the same power. The self-mirrored
+    /// columns take one half of their rows from the other, so the result is exactly centrosymmetric.
     static func centredPower<P: LineTransformPlan>(_ plan: P, _ pixels: [P.Scalar], w: Int, h: Int) -> [P.Scalar] {
         let m = w / 2 + 1
-        let half: [P.Scalar]
-        do {
-            var (re, im) = plan.realForward(pixels)
-            re.withUnsafeMutableBufferPointer { r in
-                im.withUnsafeBufferPointer { i in
-                    for k in 0..<r.count { r[k] = r[k] * r[k] + i[k] * i[k] }
+        // |F|² of the half spectrum (half a full-size array beside the transform's one, which goes when this returns).
+        let half: [P.Scalar] = {
+            let (re, im) = plan.realForward(pixels)
+            return re.withUnsafeBufferPointer { r in im.withUnsafeBufferPointer { i in
+                [P.Scalar](unsafeUninitializedCapacity: r.count) { out, n in
+                    for k in 0..<r.count { out[k] = r[k] * r[k] + i[k] * i[k] }
+                    n = r.count
                 }
-            }
-            half = re
-        }
+            } }
+        }()
         var power = [P.Scalar](repeating: 0, count: w * h)
         let shiftX = w - w / 2, shiftY = h - h / 2
         half.withUnsafeBufferPointer { hb in
@@ -145,8 +146,10 @@ public nonisolated struct PowerSpectrum: Sendable {
                         let sr = (r + shiftY) % h, mirror = (h - sr) % h
                         let row = src + sr * m, mirrored = src + mirror * m, out = dst + r * w
                         for c in 0..<w {
-                            let sc = (c + shiftX) % w
-                            out[c] = sc < m ? row[sc] : mirrored[w - sc]
+                            // Columns 0 and (even w) w/2 are their own mirror: the lower rows read the upper rows' bins
+                            // too, so every bin equals its mirror bit for bit.
+                            let sc = (c + shiftX) % w, msc = (w - sc) % w
+                            out[c] = sc < m && !(sc == msc && sr > mirror) ? row[sc] : mirrored[msc]
                         }
                     }
                 }
