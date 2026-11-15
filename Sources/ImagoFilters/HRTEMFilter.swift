@@ -151,15 +151,15 @@ public nonisolated enum HRTEMFilter {
         switch precision {
         case .float32:
             guard let fft = FFT2D(nx: n, ny: n) else { throw HRTEMFilterError.fftSetup(n) }
-            return run(pixels: pixels, n: n, parameters: parameters, precision: precision, fft: fft)
+            return try run(pixels: pixels, n: n, parameters: parameters, precision: precision, fft: fft)
         case .float64:
             guard let fft = FFT2DDouble(nx: n, ny: n) else { throw HRTEMFilterError.fftSetup(n) }
-            return run(pixels: pixels, n: n, parameters: parameters, precision: precision, fft: fft)
+            return try run(pixels: pixels, n: n, parameters: parameters, precision: precision, fft: fft)
         }
     }
 
     private static func run<F: FFT2DTransform>(pixels: [Float], n: Int, parameters: Parameters, precision: Precision,
-                                               fft: F) -> Result {
+                                               fft: F) throws -> Result {
         let count = n * n
         let half = n / 2
         var radius = [Double](repeating: 0, count: count)
@@ -191,6 +191,8 @@ public nonisolated enum HRTEMFilter {
         var flagsPerPass: [Int] = []
         var firstPassC: [Double] = []
         while d < parameters.delta && passes < parameters.cycles {
+            // A cancelled task stops the passes (up to 99 rotational averages) between passes (#80).
+            try Task.checkCancellation()
             let a = rotationalAverage(m, n: n)
             var c = passes == 0 ? [Double](repeating: 0, count: count) : []
             for i in 0..<count where radius[i] < Double(half) && s[i] > 0 {

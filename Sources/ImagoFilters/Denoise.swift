@@ -64,8 +64,8 @@ public nonisolated enum Denoise {
         try requirePositive(weight, "weight")
         try requirePositive(eps, "eps")
         guard maxNumIter >= 1 else { throw DenoiseError.parameter("maxNumIter must be at least 1") }
-        return perChannel(image, rows: rows, columns: columns, channels: channels) {
-            chambolle($0, rows: rows, columns: columns, weight: weight, eps: eps, maxNumIter: maxNumIter)
+        return try perChannel(image, rows: rows, columns: columns, channels: channels) {
+            try chambolle($0, rows: rows, columns: columns, weight: weight, eps: eps, maxNumIter: maxNumIter)
         }
     }
 
@@ -84,7 +84,7 @@ public nonisolated enum Denoise {
     @_specialize(where S == Double)
     private static func chambolle<S: BinaryFloatingPoint>(
         _ image: [S], rows: Int, columns: Int, weight: Double, eps: Double, maxNumIter: Int
-    ) -> [S] {
+    ) throws -> [S] {
         let n = rows * columns
         var p0 = [S](repeating: 0, count: n), p1 = p0, g0 = p0, g1 = p0, d = p0, norm = p0, tmp = p0
         var out = image
@@ -92,6 +92,8 @@ public nonisolated enum Denoise {
         var ePrevious: S = 0, eInit: S = 0
         var i = 0
         while i < maxNumIter {
+            // A cancelled task stops the iteration between passes (#80).
+            try Task.checkCancellation()
             if i > 0 {
                 for k in 0..<n { d[k] = -(p0[k] + p1[k]) }
                 if rows > 1 {
@@ -154,8 +156,8 @@ public nonisolated enum Denoise {
         // scikit-image passes one padded output buffer to every channel's compiled call, and the kernel starts dx, dy, bx
         // and by as copies of that buffer: from the second channel on they start as the previous channel's padded result.
         var buffer = [S](repeating: 0, count: (rows + 2) * (columns + 2))
-        return perChannel(image, rows: rows, columns: columns, channels: channels) {
-            bregman($0, rows: rows, columns: columns, weight: weight, maxNumIter: maxNumIter, eps: eps, isotropic: isotropic,
+        return try perChannel(image, rows: rows, columns: columns, channels: channels) {
+            try bregman($0, rows: rows, columns: columns, weight: weight, maxNumIter: maxNumIter, eps: eps, isotropic: isotropic,
                     buffer: &buffer)
         }
     }
@@ -176,7 +178,7 @@ public nonisolated enum Denoise {
     private static func bregman<S: BinaryFloatingPoint>(
         _ image: [S], rows: Int, columns: Int, weight: Double, maxNumIter: Int, eps: Double, isotropic: Bool,
         buffer: inout [S]
-    ) -> [S] {
+    ) throws -> [S] {
         let nc = columns + 2
         var out = buffer, dx = buffer, dy = buffer, bx = buffer, by = buffer
         defer { buffer = out }
@@ -194,6 +196,8 @@ public nonisolated enum Denoise {
         var rmse: S = .infinity
         var iteration = 0
         while iteration < maxNumIter && Double(rmse) > eps {
+            // A cancelled task stops the iteration between passes (#80).
+            try Task.checkCancellation()
             rmse = 0
             for r in 1...rows {
                 for c in 1...columns {
@@ -258,17 +262,17 @@ public nonisolated enum Denoise {
         // the kernels are inlined, so a literal channel count of 1 lets the compiler drop the channel loops
         if fastMode {
             let wide = image.map { Double($0) }
-            let out = channels == 1
+            let out = try channels == 1
                 ? nonLocalMeansFast(wide, rows: rows, columns: columns, channels: 1, s: s, d: patchDistance, h: h, variance: variance)
                 : nonLocalMeansFast(wide, rows: rows, columns: columns, channels: channels, s: s, d: patchDistance, h: h,
                                     variance: variance)
             return out.map { S($0) }
         }
         if channels == 1 {
-            return nonLocalMeansExact(image, rows: rows, columns: columns, channels: 1, s: s, d: patchDistance, h: h,
+            return try nonLocalMeansExact(image, rows: rows, columns: columns, channels: 1, s: s, d: patchDistance, h: h,
                                       variance: variance)
         }
-        return nonLocalMeansExact(image, rows: rows, columns: columns, channels: channels, s: s, d: patchDistance, h: h,
+        return try nonLocalMeansExact(image, rows: rows, columns: columns, channels: channels, s: s, d: patchDistance, h: h,
                                   variance: variance)
     }
 
@@ -289,7 +293,7 @@ public nonisolated enum Denoise {
 
     @inline(__always)
     private static func nonLocalMeansFast(_ image: [Double], rows: Int, columns: Int, channels nch: Int, s: Int, d: Int,
-                                          h: Double, variance: Double) -> [Double] {
+                                          h: Double, variance: Double) throws -> [Double] {
         let off = s / 2, pad = off + d + 1
         let nr = rows + 2 * pad, nc = columns + 2 * pad
         let padded = reflectPad(image, rows: rows, columns: columns, channels: nch, pad: pad)
@@ -299,6 +303,8 @@ public nonisolated enum Denoise {
         let h2s2 = ((h * channelCount * h) * Double(s)) * Double(s)
         let twoVar = variance + variance
         for tRow in -d...d {
+            // A cancelled task stops the search between shifts (#80): up to 2049 × 1025 of them.
+            try Task.checkCancellation()
             let rowStart = max(off, off - tRow), rowEnd = min(nr - off, nr - off - tRow)
             let rLo = max(1, -tRow), rHi = min(nr, nr - tRow)
             for tCol in 0...d {
@@ -357,7 +363,7 @@ public nonisolated enum Denoise {
     @_specialize(where S == Double)
     private static func nonLocalMeansExact<S: BinaryFloatingPoint>(
         _ image: [S], rows: Int, columns: Int, channels nch: Int, s: Int, d: Int, h: Double, variance: Double
-    ) -> [S] {
+    ) throws -> [S] {
         let off = s / 2, pad = off + d + 1
         let nc = columns + 2 * pad
         let padded = reflectPad(image, rows: rows, columns: columns, channels: nch, pad: pad)
@@ -377,9 +383,11 @@ public nonisolated enum Denoise {
         let minusTwoVar = S(-(2.0 * variance))
         let five = S(5)
         var out = [S](repeating: 0, count: rows * columns * nch)
-        padded.withUnsafeBufferPointer { P in
-            w.withUnsafeBufferPointer { W in out.withUnsafeMutableBufferPointer { O in
+        try padded.withUnsafeBufferPointer { P in
+            try w.withUnsafeBufferPointer { W in try out.withUnsafeMutableBufferPointer { O in
                 for row in 0..<rows {
+                    // A cancelled task stops the search between rows (#80).
+                    try Task.checkCancellation()
                     let i0 = row - min(d, row), i1 = row + min(d + 1, rows - row)
                     for col in 0..<columns {
                         let j0 = col - min(d, col), j1 = col + min(d + 1, columns - col)
@@ -433,8 +441,8 @@ public nonisolated enum Denoise {
 
     /// A channel-last image (`image[(row * columns + column) * channels + k]`) denoised one channel at a time; one channel
     /// passes straight through. The shape is already checked.
-    private static func perChannel<S>(_ image: [S], rows: Int, columns: Int, channels: Int, _ denoise: ([S]) -> [S]) -> [S] {
-        if channels == 1 { return denoise(image) }
+    private static func perChannel<S>(_ image: [S], rows: Int, columns: Int, channels: Int, _ denoise: ([S]) throws -> [S]) rethrows -> [S] {
+        if channels == 1 { return try denoise(image) }
         let n = rows * columns
         var out = image
         var plane = [S]()
@@ -442,7 +450,7 @@ public nonisolated enum Denoise {
         for k in 0..<channels {
             plane.removeAll(keepingCapacity: true)
             for i in 0..<n { plane.append(image[i * channels + k]) }
-            let done = denoise(plane)
+            let done = try denoise(plane)
             for i in 0..<n { out[i * channels + k] = done[i] }
         }
         return out

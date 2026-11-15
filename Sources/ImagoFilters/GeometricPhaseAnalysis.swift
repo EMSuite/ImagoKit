@@ -119,6 +119,8 @@ public nonisolated enum GeometricPhaseAnalysis {
 
         var phases: [[Double]] = [], amps: [[Double]] = [], grads: [(r: [Double], c: [Double])] = []
         for g in [g1, g2] {
+            // A cancelled task stops the analysis between reflections (#80): two transforms and full-size passes each.
+            try Task.checkCancellation()
             var mre = [Double](repeating: 0, count: count), mim = mre
             let inv2s2 = 1 / (2 * sigma * sigma)
             for i in 0..<rows {
