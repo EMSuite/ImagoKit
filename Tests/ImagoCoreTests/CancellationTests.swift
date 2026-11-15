@@ -24,8 +24,9 @@ import Testing
         let mask = [Bool](repeating: true, count: n)
         #expect(await throwsCancellation { try Segmentation.label(mask, width: Self.side, height: Self.side) })
         let image = noise(Self.side, Self.side, seed: 2).pixels.map(Double.init)
-        var markers = [Int32](repeating: 0, count: n)
-        markers[0] = 1; markers[n - 1] = 2
+        var seeds = [Int32](repeating: 0, count: n)
+        seeds[0] = 1; seeds[n - 1] = 2
+        let markers = seeds
         #expect(await throwsCancellation {
             try Segmentation.watershed(image: image, markers: markers, rows: Self.side, columns: Self.side)
         })
