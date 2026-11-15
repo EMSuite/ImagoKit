@@ -98,3 +98,21 @@ func identicalRowsHaveNoPowerOffTheCentreRow(_ size: (Int, Int), _ precision: Pr
     #expect(s.power[(h / 2) * w + w / 2] > 0, "the DC has power")
     #expect(s.power[(h / 2) * w + w / 2 + 3] > 0, "the planted cosine has power")
 }
+
+@Test(arguments: [0.01, 0.002])
+func aFaintPeakAboveTheRoundingFloorSurvives(_ amplitude: Double) throws {
+    // A faint lattice on a bright mean: 64², mean 1000, a cosine of `amplitude` (1e-5 and 2e-6 of the mean, a few Float32 ulps
+    // at 1000). Its power (amplitude · N/2)² is about 7000 and 280 times the floor u²·max |F|² (0.06 here), so it must stay a
+    // number, the brightest bin off the DC, and close to the Float64 spectrum (held to NumPy at 1e-12 in SpectrumTests).
+    let n = 64, kx = 5
+    let pixels = (0..<(n * n)).map { Float(1000 + amplitude * cos(2 * Double.pi * Double(kx * ($0 % n)) / Double(n))) }
+    let image = try Micrograph(width: n, height: n, pixels: pixels)
+    let f32 = try PowerSpectrum.compute(image, precision: .float32)
+    let f64 = try PowerSpectrum.compute(image, precision: .float64)
+    let peak = (n / 2) * n + n / 2 + kx, dc = (n / 2) * n + n / 2
+    #expect(f32.power[peak] > 0, "amplitude \(amplitude): the faint peak was zeroed")
+    let truth = f64.power[peak]
+    #expect(abs(f32.power[peak] - truth) <= 0.5 * truth, "amplitude \(amplitude): \(f32.power[peak]) against Float64 \(truth)")
+    let brightest = (0..<(n * n)).filter { $0 != dc }.max { f32.power[$0] < f32.power[$1] }!
+    #expect(brightest == peak || brightest == 2 * dc - peak, "amplitude \(amplitude): brightest off-DC bin \(brightest), planted \(peak)")
+}
