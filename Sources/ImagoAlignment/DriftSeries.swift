@@ -32,18 +32,22 @@ public nonisolated enum DriftSeries {
         switch precision {
         case .float32:
             guard let fft = FFT2D(nx: w, ny: h) else { throw AlignmentError.fftSetup(width: w, height: h) }
-            return estimate(fft, frames.map(\.pixels), w, h, reference, upsampleFactor, normalization, precision)
+            return try estimate(fft, frames.map(\.pixels), w, h, reference, upsampleFactor, normalization, precision)
         case .float64:
             guard let fft = FFT2DDouble(nx: w, ny: h) else { throw AlignmentError.fftSetup(width: w, height: h) }
-            return estimate(fft, frames.map { $0.pixels.map(Double.init) }, w, h, reference, upsampleFactor,
+            return try estimate(fft, frames.map { $0.pixels.map(Double.init) }, w, h, reference, upsampleFactor,
                             normalization, precision)
         }
     }
 
     private static func estimate<T: LineTransformPlan>(_ fft: T, _ frames: [[T.Scalar]], _ w: Int, _ h: Int,
                                                      _ reference: DriftReference, _ u: Int, _ normalization: Normalization,
-                                                     _ precision: Precision) -> [ImageRegistration] {
-        let spectra = frames.map { Spectrum.of($0, fft) }
+                                                     _ precision: Precision) throws -> [ImageRegistration] {
+        // A cancelled task stops the series between frames (#80): one transform and one registration per frame.
+        let spectra = try frames.map { frame in
+            try Task.checkCancellation()
+            return Spectrum.of(frame, fft)
+        }
         let identity = ImageRegistration(shift: .zero, error: 0, phaseDifference: 0, upsampleFactor: u,
                                          normalization: normalization, precision: precision)
         var out = [ImageRegistration]()
@@ -52,16 +56,19 @@ public nonisolated enum DriftSeries {
         case .first:
             out.append(identity)
             for k in 1..<max(frames.count, 1) {
+                try Task.checkCancellation()
                 out.append(PhaseCorrelation.correlate(fft, spectra[0], spectra[k], w, h, u, normalization, precision))
             }
         case .mean:
             let mean = Spectrum.of(meanImage(frames), fft)
             for k in 0..<frames.count {
+                try Task.checkCancellation()
                 out.append(PhaseCorrelation.correlate(fft, mean, spectra[k], w, h, u, normalization, precision))
             }
         case .previous:
-            let pairs = (1..<max(frames.count, 1)).map {
-                PhaseCorrelation.correlate(fft, spectra[$0 - 1], spectra[$0], w, h, u, normalization, precision)
+            let pairs = try (1..<max(frames.count, 1)).map { k in
+                try Task.checkCancellation()
+                return PhaseCorrelation.correlate(fft, spectra[k - 1], spectra[k], w, h, u, normalization, precision)
             }
             out.append(identity)
             out.append(contentsOf: cumulated(pairs, identity))

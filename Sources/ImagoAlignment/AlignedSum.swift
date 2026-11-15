@@ -52,7 +52,7 @@ public nonisolated enum AlignedSum {
                 guard let fft = FFT2D(nx: w, ny: h) else { throw AlignmentError.fftSetup(width: w, height: h) }
                 engine = fft
             }
-            (sums, means, counts, imaginary) = accumulate(frames.map(\.pixels), shifts, w, h, method) { pixels, shift in
+            (sums, means, counts, imaginary) = try accumulate(frames.map(\.pixels), shifts, w, h, method) { pixels, shift in
                 ImageShift.fourierShifted(pixels, w, h, shift, engine!)
             }
         case .float64:
@@ -61,7 +61,7 @@ public nonisolated enum AlignedSum {
                 guard let fft = FFT2DDouble(nx: w, ny: h) else { throw AlignmentError.fftSetup(width: w, height: h) }
                 engine = fft
             }
-            (sums, means, counts, imaginary) = accumulate(frames.map { $0.pixels.map(Double.init) }, shifts, w, h,
+            (sums, means, counts, imaginary) = try accumulate(frames.map { $0.pixels.map(Double.init) }, shifts, w, h,
                                                           method) { pixels, shift in
                 ImageShift.fourierShifted(pixels, w, h, shift, engine!)
             }
@@ -75,13 +75,15 @@ public nonisolated enum AlignedSum {
     private static func accumulate<S: BinaryFloatingPoint & Sendable>(
         _ frames: [[S]], _ shifts: [PixelShift], _ w: Int, _ h: Int, _ method: AlignmentMethod,
         fourier: ([S], PixelShift) -> ([S], Double)
-    ) -> ([Float], [Float], [Int], Double) {
+    ) throws -> ([Float], [Float], [Int], Double) {
         var total = [S](repeating: 0, count: w * h)
         var counts = [Int](repeating: 0, count: w * h)
         var imaginary = 0.0
         switch method {
         case .fourier:
             for (k, frame) in frames.enumerated() {
+                // A cancelled task stops the sum between frames (#80).
+                try Task.checkCancellation()
                 let (shifted, imag) = fourier(frame, shifts[k])
                 imaginary = max(imaginary, imag)
                 for i in 0..<total.count { total[i] += shifted[i] }
@@ -89,6 +91,7 @@ public nonisolated enum AlignedSum {
             counts = [Int](repeating: frames.count, count: w * h)
         case .bilinear:
             for (k, frame) in frames.enumerated() {
+                try Task.checkCancellation()
                 let rows = ImageShift.axisSamples(h, shifts[k].row, .linear, .constant)
                 let columns = ImageShift.axisSamples(w, shifts[k].column, .linear, .constant)
                 let shifted = ImageShift.shifted(frame, w, h, shifts[k], .linear, .constant, 0)

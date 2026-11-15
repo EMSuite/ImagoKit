@@ -117,7 +117,7 @@ public nonisolated enum RollingBall {
                 cells.append((dr, dc, centre - S(max(radius * radius - sumOfSquares, 0).squareRoot())))
             }
         }
-        return nanSafe ? scanNaNSafe(image, width, height, cells) : scan(image, width, height, cells)
+        return try nanSafe ? scanNaNSafe(image, width, height, cells) : scan(image, width, height, cells)
     }
 
     /// `rolling_ball(image, kernel=)`; `nanSafe` as for `background(image:rows:columns:radius:nanSafe:)`, and with it a NaN kernel
@@ -148,7 +148,7 @@ public nonisolated enum RollingBall {
                 cells.append((r - centreR, c - centreC, centre - ks))
             }
         }
-        return nanSafe ? scanNaNSafe(image, width, height, cells) : scan(image, width, height, cells)
+        return try nanSafe ? scanNaNSafe(image, width, height, cells) : scan(image, width, height, cells)
     }
 
     /// scikit-image's `_supported_float_type`: a type narrower than Float (Float16) is computed in Float and the background cast
@@ -161,9 +161,11 @@ public nonisolated enum RollingBall {
 
     /// `apply_kernel_nan`: the minimum of (padded image + D) over every cell, NaN as soon as one sum is NaN; outside the image the
     /// padded value is +infinity.
-    private static func scanNaNSafe<S: BinaryFloatingPoint>(_ image: [S], _ width: Int, _ height: Int, _ cells: [(dr: Int, dc: Int, d: S)]) -> [S] {
+    private static func scanNaNSafe<S: BinaryFloatingPoint>(_ image: [S], _ width: Int, _ height: Int, _ cells: [(dr: Int, dc: Int, d: S)]) throws -> [S] {
         var out = [S](repeating: 0, count: width * height)
         for r in 0..<height {
+            // A long walk (every kernel cell per pixel) stops once its task is cancelled (#80).
+            try Task.checkCancellation()
             for c in 0..<width {
                 var best = S.infinity
                 for cell in cells {
@@ -179,9 +181,11 @@ public nonisolated enum RollingBall {
         return out
     }
 
-    private static func scan<S: BinaryFloatingPoint>(_ image: [S], _ width: Int, _ height: Int, _ cells: [(dr: Int, dc: Int, d: S)]) -> [S] {
+    private static func scan<S: BinaryFloatingPoint>(_ image: [S], _ width: Int, _ height: Int, _ cells: [(dr: Int, dc: Int, d: S)]) throws -> [S] {
         var out = [S](repeating: 0, count: width * height)
         for r in 0..<height {
+            // A long walk (every kernel cell per pixel) stops once its task is cancelled (#80).
+            try Task.checkCancellation()
             for c in 0..<width {
                 var best = S.infinity
                 for cell in cells {

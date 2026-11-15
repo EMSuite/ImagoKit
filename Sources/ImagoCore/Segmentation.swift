@@ -112,11 +112,15 @@ public nonisolated enum Segmentation {
         var next: Int32 = 0
         var stack: [Int] = []
         let diagonal = connectivity == .eight
+        var visited = 0
         for start in 0..<count where labels[start] == 0 && isForeground(start) {
             next += 1
             labels[start] = next
             stack.append(start)
             while let i = stack.popLast() {
+                // A cancelled task stops the fill every 64 Ki pixels (#80).
+                visited &+= 1
+                if visited & 0xFFFF == 0 { try Task.checkCancellation() }
                 let row = i / width, col = i % width
                 for dy in -1...1 {
                     for dx in -1...1 where !(dx == 0 && dy == 0) && (diagonal || dx == 0 || dy == 0) {

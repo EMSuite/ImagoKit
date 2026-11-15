@@ -38,6 +38,8 @@ public nonisolated enum DistanceTransform {
         var f = [Double](repeating: 0, count: max(width, height))
         var out = [Double](repeating: 0, count: max(width, height))
         for c in 0..<width {
+            // A cancelled task stops the transform between lines (#80).
+            if c & 63 == 0 { try Task.checkCancellation() }
             for r in 0..<height { f[r] = mask[r * width + c] ? .infinity : 0 }
             envelope(f, count: height, step: sampling.rows, into: &out)
             for r in 0..<height { g[r * width + c] = out[r] }
@@ -45,6 +47,7 @@ public nonisolated enum DistanceTransform {
         // Pass 2, along each row, over the squared distances of pass 1.
         var result = [Double](repeating: 0, count: n)
         for r in 0..<height {
+            if r & 63 == 0 { try Task.checkCancellation() }
             for c in 0..<width { f[c] = g[r * width + c] }
             envelope(f, count: width, step: sampling.columns, into: &out)
             for c in 0..<width { result[r * width + c] = out[c].squareRoot() }
@@ -65,6 +68,8 @@ public nonisolated enum DistanceTransform {
         // Pass 1 (SciPy's d = 0), down each column: a background pixel names itself, a foreground one gets row -1 (column 0, from
         // SciPy's zeroed output); a column without background keeps that.
         for c in 0..<width {
+            // A cancelled task stops the transform between lines (#80).
+            if c & 63 == 0 { try Task.checkCancellation() }
             for r in 0..<height {
                 let isForeground = mask[r * width + c]
                 lineRow[r] = isForeground ? -1 : r
@@ -75,6 +80,7 @@ public nonisolated enum DistanceTransform {
         }
         // Pass 2 (d = 1), along each row over the features of pass 1.
         for r in 0..<height {
+            if r & 63 == 0 { try Task.checkCancellation() }
             for c in 0..<width { lineRow[c] = ftRow[r * width + c]; lineColumn[c] = ftColumn[r * width + c] }
             voronoi(&lineRow, &lineColumn, count: width, axis: 1, coordinates: (r, 0), sampling: s)
             for c in 0..<width { ftRow[r * width + c] = lineRow[c]; ftColumn[r * width + c] = lineColumn[c] }

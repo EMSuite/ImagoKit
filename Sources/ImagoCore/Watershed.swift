@@ -44,7 +44,7 @@ extension Segmentation {
         guard !image.contains(where: \.isNaN) else { throw MorphologyError.parameter("image contains NaN") }
         guard compactness.isFinite, compactness >= 0 else { throw MorphologyError.parameter("compactness must be finite and not negative") }
         if compactness > 0 || watershedLine {
-            return labelOnPop(image: image, markers: markers, width: width, height: height, mask: mask, connectivity: connectivity,
+            return try labelOnPop(image: image, markers: markers, width: width, height: height, mask: mask, connectivity: connectivity,
                               compactness: compactness)
         }
         let pw = width + 2, ph = height + 2
@@ -64,8 +64,11 @@ extension Segmentation {
         if connectivity == .eight { offsets += [-pw - 1, -pw + 1, pw - 1, pw + 1] }
         var heap = FloodHeap()
         for p in 0..<pw * ph where output[p] != 0 { heap.push(FloodItem(value: padImage[p], age: 0, index: p)) }
-        var age = 0
+        var age = 0, pops = 0
         while let item = heap.pop() {
+            // A cancelled task stops the flood every 64 Ki pops (#80).
+            pops &+= 1
+            if pops & 0xFFFF == 0 { try Task.checkCancellation() }
             let label = output[item.index]
             for o in offsets {
                 let q = item.index + o
@@ -83,7 +86,7 @@ extension Segmentation {
     /// The compact and watershed-line flood: a pixel is labelled when it leaves the queue, not when it enters it, so it can be
     /// queued more than once (each queued copy carries the marker, the source, it came from).
     private static func labelOnPop(image: [Double], markers: [Int32], width: Int, height: Int, mask: [Bool]?,
-                                   connectivity: Connectivity, compactness: Double) -> [Int32] {
+                                   connectivity: Connectivity, compactness: Double) throws -> [Int32] {
         let n = width * height
         let pw = width + 2, ph = height + 2
         var padImage = [Double](repeating: 0, count: pw * ph)
@@ -103,8 +106,11 @@ extension Segmentation {
         let compact = compactness > 0
         var heap = FloodHeap()
         for p in 0..<pw * ph where output[p] != 0 { heap.push(FloodItem(value: padImage[p], age: 0, index: p, source: p)) }
-        var age = 0
+        var age = 0, pops = 0
         while let item = heap.pop() {
+            // A cancelled task stops the flood every 64 Ki pops (#80).
+            pops &+= 1
+            if pops & 0xFFFF == 0 { try Task.checkCancellation() }
             if output[item.index] != 0, item.index != item.source { continue }
             // With compactness the line is never drawn (scikit-image's `if compact or not _diff_neighbors(...)`). A line pixel
             // leaves the mask unlabelled but still passes the flood on to its neighbours.

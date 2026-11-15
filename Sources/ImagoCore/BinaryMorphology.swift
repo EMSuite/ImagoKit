@@ -86,14 +86,14 @@ public nonisolated enum BinaryMorphology {
     public static func erosion(_ mask: [Bool], width: Int, height: Int, structure: StructuringElement = .cross,
                                iterations: Int = 1, borderValue: Bool = false) throws -> [Bool] {
         try check(mask, width, height)
-        return repeated(mask, iterations) { erodeOnce($0, width, height, structure, borderValue) }
+        return try repeated(mask, iterations) { erodeOnce($0, width, height, structure, borderValue) }
     }
 
     /// `ndimage.binary_dilation(mask, structure, iterations, border_value=)`.
     public static func dilation(_ mask: [Bool], width: Int, height: Int, structure: StructuringElement = .cross,
                                 iterations: Int = 1, borderValue: Bool = false) throws -> [Bool] {
         try check(mask, width, height)
-        return repeated(mask, iterations) { dilateOnce($0, width, height, structure, borderValue) }
+        return try repeated(mask, iterations) { dilateOnce($0, width, height, structure, borderValue) }
     }
 
     /// `ndimage.binary_opening`: erosion, then dilation, both with `borderValue`.
@@ -214,14 +214,19 @@ public nonisolated enum BinaryMorphology {
         guard width > 0, height > 0, !overflow, mask.count == product else { throw MorphologyError.shape }
     }
 
-    /// Runs `step` `iterations` times, or until the mask stops changing when `iterations < 1`.
-    private static func repeated(_ mask: [Bool], _ iterations: Int, _ step: ([Bool]) -> [Bool]) -> [Bool] {
+    /// Runs `step` `iterations` times, or until the mask stops changing when `iterations < 1`. A cancelled task stops it between
+    /// passes (#80): with `iterations < 1` it can run many.
+    private static func repeated(_ mask: [Bool], _ iterations: Int, _ step: ([Bool]) -> [Bool]) throws -> [Bool] {
         var current = mask
         if iterations >= 1 {
-            for _ in 0..<iterations { current = step(current) }
+            for _ in 0..<iterations {
+                try Task.checkCancellation()
+                current = step(current)
+            }
             return current
         }
         while true {
+            try Task.checkCancellation()
             let next = step(current)
             if next == current { return current }
             current = next
