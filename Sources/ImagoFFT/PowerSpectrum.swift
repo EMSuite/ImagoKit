@@ -12,7 +12,9 @@
 //  MEMORY (ImagoKit#94): the image is real, so the transform is the real-input one (NumPy's rfft2, `RealFFT2D`): the half
 //  spectrum, squared, mirrored into the centred full power by Hermitian symmetry (bin (r, c) is the conjugate of
 //  bin (−r, −c)). `magnitude` is computed from `power` when read. Two full-size arrays at the peak, one held; the complex
-//  transform held four at its peak (the 375 MP alite SEM image, macEM#579).
+//  transform held four at its peak (the 375 MP alite SEM image, macEM#579). The image is consumed (ImagoKit#101): handed over,
+//  its pixels go after the transform's row step: the peak is 2⅛ full-size arrays (the input, the half spectrum and an eighth of
+//  row scratch), then two, where it was three throughout (the input beside two; macEM#686).
 //
 
 import Foundation
@@ -86,28 +88,35 @@ public nonisolated struct PowerSpectrum: Sendable {
     public let crop: PixelCrop?
     public let precision: Precision
 
-    /// The spectrum of `image`, or of `crop` of it.
-    public static func compute(_ image: Micrograph, crop: PixelCrop? = nil,
+    /// The spectrum of `image`, or of `crop` of it. `image` is consumed: a caller that hands over its only reference (a
+    /// temporary, or `consume`) has its pixels freed as soon as the transform has read them, before the column step and the
+    /// power exist (ImagoKit#101); a caller that keeps the image keeps it, as before.
+    public static func compute(_ image: consuming Micrograph, crop: PixelCrop? = nil,
                                precision: Precision = .float32) throws -> PowerSpectrum {
         let source: Micrograph
         if let crop {
             guard let c = image.cropped(crop) else { throw PowerSpectrumError.crop(crop) }
+            _ = consume image                   // the whole image goes before the region is transformed
             source = c
         } else {
-            source = image
+            source = consume image
         }
         let w = source.width, h = source.height
+        let (dx, ux) = LengthUnit.frequencySampling(source.x)
+        let (dy, uy) = LengthUnit.frequencySampling(source.y)
+        let pixels = source.pixels
+        _ = consume source                      // `pixels` is now the only reference this function holds
         let power: SpectrumValues
         switch precision {
         case .float32:
             guard let fft = FFT2D(nx: w, ny: h) else { throw PowerSpectrumError.fftSetup(width: w, height: h) }
-            power = .float32(centredPower(fft, source.pixels, w: w, h: h))
+            power = .float32(centredPower(fft, consume pixels, w: w, h: h))
         case .float64:
             guard let fft = FFT2DDouble(nx: w, ny: h) else { throw PowerSpectrumError.fftSetup(width: w, height: h) }
-            power = .float64(centredPower(fft, source.pixels.map(Double.init), w: w, h: h))
+            let doubles = pixels.map(Double.init)
+            _ = consume pixels
+            power = .float64(centredPower(fft, consume doubles, w: w, h: h))
         }
-        let (dx, ux) = LengthUnit.frequencySampling(source.x)
-        let (dy, uy) = LengthUnit.frequencySampling(source.y)
         return PowerSpectrum(width: w, height: h, power: power,
                              axisX: frequencies(w, d: dx), axisY: frequencies(h, d: dy),
                              spacingX: 1.0 / (Double(w) * dx), spacingY: 1.0 / (Double(h) * dy),
@@ -124,18 +133,20 @@ public nonisolated struct PowerSpectrum: Sendable {
     /// the missing half mirrored. Output (r, c) takes bin (sr, sc) = ((r + h − h/2) mod h, (c + w − w/2) mod w), which for
     /// sc > w/2 is the conjugate of the half spectrum's bin ((h − sr) mod h, w − sc): the same power. The self-mirrored
     /// columns take one half of their rows from the other, so the result is exactly centrosymmetric.
-    static func centredPower<P: LineTransformPlan>(_ plan: P, _ pixels: [P.Scalar], w: Int, h: Int) -> [P.Scalar] {
+    static func centredPower<P: LineTransformPlan>(_ plan: P, _ pixels: consuming [P.Scalar], w: Int, h: Int) -> [P.Scalar] {
         let m = w / 2 + 1
-        // |F|² of the half spectrum (half a full-size array beside the transform's one, which goes when this returns).
-        let half: [P.Scalar] = {
-            let (re, im) = plan.realForward(pixels)
-            return re.withUnsafeBufferPointer { r in im.withUnsafeBufferPointer { i in
+        // |F|² of the half spectrum (half a full-size array beside the transform's one, which goes at the end of this block).
+        // `pixels` is handed on: the transform frees it after its row step.
+        let half: [P.Scalar]
+        do {
+            let (re, im) = plan.realForward(consume pixels)
+            half = re.withUnsafeBufferPointer { r in im.withUnsafeBufferPointer { i in
                 [P.Scalar](unsafeUninitializedCapacity: r.count) { out, n in
                     for k in 0..<r.count { out[k] = r[k] * r[k] + i[k] * i[k] }
                     n = r.count
                 }
             } }
-        }()
+        }
         var power = [P.Scalar](repeating: 0, count: w * h)
         let shiftX = w - w / 2, shiftY = h - h / 2
         half.withUnsafeBufferPointer { hb in

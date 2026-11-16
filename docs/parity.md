@@ -203,7 +203,9 @@ Speed against Python is in `docs/benchmarks.md`.
   is the transposes around the vDSP calls. The kit keeps the vDSP path by design.
 - **`PowerSpectrum`** transforms the real image with the real-input path (`rfft2`) and fills the other half by Hermitian
   symmetry (ImagoKit#94): two full-size arrays at the peak instead of four, and the spectrum is exactly centrosymmetric. It
-  holds `power` alone; `magnitude` is its square root, computed when read. Within the NumPy `fft2` bands above.
+  holds `power` alone; `magnitude` is its square root, computed when read. Within the NumPy `fft2` bands above. A handed-over
+  image (`consume`, or a temporary) is freed after the row step, whose scratch is an eighth of the image, and
+  `SpectrumDisplay.make` turns a handed-over spectrum's power into its values in place (ImagoKit#101): the same bits.
 - **Naming before 1.0:** the newer surface takes `rows`/`columns`; `LabelImage`, `Micrograph` and the older morphology and
   segmentation API still say `width`/`height` (unified at 1.0, a break).
 - **`BinaryMorphology`** refuses even structures and an all-false structure (SciPy shifts the origin and answers) and runs a
