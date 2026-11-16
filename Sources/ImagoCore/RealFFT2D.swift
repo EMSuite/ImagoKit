@@ -25,8 +25,9 @@ package protocol LineTransformPlan: FFT2DTransform {
     func transformLines(alongX: Bool, count: Int, forward: Bool, inputStride: Int?,
                         _ inputRe: UnsafePointer<Scalar>, _ inputIm: UnsafePointer<Scalar>,
                         _ outputRe: UnsafeMutablePointer<Scalar>, _ outputIm: UnsafeMutablePointer<Scalar>)
-    /// The unnormalised half spectrum (`ny × (nx/2 + 1)`, split complex) of a real `ny × nx` image.
-    func realForward(_ real: [Scalar]) -> (re: [Scalar], im: [Scalar])
+    /// The unnormalised half spectrum (`ny × (nx/2 + 1)`, split complex) of a real `ny × nx` image. `real` is consumed: a caller
+    /// that hands over its only reference (`consume`) has it freed after the row step.
+    func realForward(_ real: consuming [Scalar]) -> (re: [Scalar], im: [Scalar])
     /// The unnormalised real image (`ny × nx`) of a half spectrum of `inputColumns` columns per row.
     func realInverse(re: [Scalar], im: [Scalar], inputColumns: Int) -> [Scalar]
     /// `dst` (`columns × rows`) = transpose of `src` (`rows × columns`).
@@ -39,7 +40,7 @@ extension FFT2DDouble: LineTransformPlan {
     }
 
     /// The unnormalised half spectrum (`ny × (nx/2 + 1)`, split complex) of a real `ny × nx` image.
-    package func realForward(_ real: [Double]) -> (re: [Double], im: [Double]) { RealFFT2D.forward(self, real) }
+    package func realForward(_ real: consuming [Double]) -> (re: [Double], im: [Double]) { RealFFT2D.forward(self, consume real) }
 
     /// The unnormalised real image (`ny × nx`) of a half spectrum of `inputColumns` columns per row.
     package func realInverse(re: [Double], im: [Double], inputColumns: Int) -> [Double] {
@@ -53,7 +54,7 @@ extension FFT2D: LineTransformPlan {
     }
 
     /// The unnormalised half spectrum (`ny × (nx/2 + 1)`, split complex) of a real `ny × nx` image.
-    package func realForward(_ real: [Float]) -> (re: [Float], im: [Float]) { RealFFT2D.forward(self, real) }
+    package func realForward(_ real: consuming [Float]) -> (re: [Float], im: [Float]) { RealFFT2D.forward(self, consume real) }
 
     /// The unnormalised real image (`ny × nx`) of a half spectrum of `inputColumns` columns per row.
     package func realInverse(re: [Float], im: [Float], inputColumns: Int) -> [Float] {
@@ -75,55 +76,73 @@ nonisolated package enum RealFFT2D {
     /// Columns handled per sweep of the split and pack loops (their other side is a transposed, strided array).
     private static let block = 8
 
-    static func forward<P: LineTransformPlan>(_ plan: P, _ real: [P.Scalar]) -> (re: [P.Scalar], im: [P.Scalar]) {
+    /// Row pairs transformed per pass of the row step: an eighth of them, but enough lines to keep every core busy.
+    static func rowPairsPerPass(pairs: Int, columns w: Int) -> Int {
+        min(pairs, max((pairs + 7) / 8, (1 << 20) / max(w, 1) + 1))
+    }
+
+    /// `real` is consumed: when the caller hands over its only reference, the input is freed once the row step has read it,
+    /// so it never sits beside the column step's scratch (ImagoKit#101). `pairsPerPass` overrides `rowPairsPerPass` (tests).
+    static func forward<P: LineTransformPlan>(_ plan: P, _ real: consuming [P.Scalar],
+                                              pairsPerPass: Int? = nil) -> (re: [P.Scalar], im: [P.Scalar]) {
         typealias S = P.Scalar
         let h = plan.ny, w = plan.nx, m = w / 2 + 1, pairs = (h + 1) / 2
         precondition(real.count == h * w)
-        // At most two full-size arrays at once (ImagoKit#94): the row pass's packed scratch (about one) and the output, which
-        // first holds the split half spectra transposed (`m × h`); the row scratch is freed, the columns go into a second
-        // scratch, and it is transposed back into the output.
+        // At most the input and one full-size array plus an eighth (ImagoKit#94, #101): the output, which first holds the split
+        // half spectra transposed (`m × h`), and the row step's packed scratch for one pass of `chunk` row pairs; then the input
+        // goes, the columns go into a second scratch, and it is transposed back into the output. Every line is transformed by
+        // the same code whatever the pass, so the result is the same bits as one pass over all rows.
         var outRe = [S](repeating: 0, count: h * m), outIm = outRe
         do {
-            let tr = Scratch<S>(pairs * w), ti = Scratch<S>(pairs * w)
-            // Rows 2p and 2p + 1 are one complex row: the real input array itself serves as the real and the imaginary part.
+            let chunk = max(1, min(pairs, pairsPerPass ?? rowPairsPerPass(pairs: pairs, columns: w)))
+            let tr = Scratch<S>(chunk * w), ti = Scratch<S>(chunk * w)
+            let half = S(0.5)
             real.withUnsafeBufferPointer { xb in
                 let x = xb.baseAddress!
-                if h >= 2 {
-                    plan.transformLines(alongX: true, count: h / 2, forward: true, inputStride: 2 * w, x, x + w, tr.pointer, ti.pointer)
-                }
-                if h % 2 == 1 {
-                    let zero = Scratch<S>(w, zero: true)
-                    plan.transformLines(alongX: true, count: 1, forward: true, inputStride: w, x + (h - 1) * w, zero.pointer,
-                                        tr.pointer + (pairs - 1) * w, ti.pointer + (pairs - 1) * w)
+                var p0 = 0
+                while p0 < pairs {
+                    let p1 = min(p0 + chunk, pairs)
+                    // Rows 2p and 2p + 1 are one complex row: the real input array itself serves as the real and the imaginary part.
+                    let full = min(p1, h / 2) - p0
+                    if full > 0 {
+                        plan.transformLines(alongX: true, count: full, forward: true, inputStride: 2 * w, x + 2 * p0 * w,
+                                            x + 2 * p0 * w + w, tr.pointer, ti.pointer)
+                    }
+                    if h % 2 == 1 && p1 == pairs {
+                        let zero = Scratch<S>(w, zero: true)
+                        plan.transformLines(alongX: true, count: 1, forward: true, inputStride: w, x + (h - 1) * w, zero.pointer,
+                                            tr.pointer + (pairs - 1 - p0) * w, ti.pointer + (pairs - 1 - p0) * w)
+                    }
+                    // Split each pair into the two half spectra, written transposed (`m × h`): bin k of rows 2p and 2p + 1 is
+                    // b[k * h + 2p] and b[k * h + 2p + 1].
+                    outRe.withUnsafeMutableBufferPointer { brb in outIm.withUnsafeMutableBufferPointer { bib in
+                        let br = brb.baseAddress!, bi = bib.baseAddress!
+                        var k0 = 0
+                        while k0 < m {
+                            let k1 = min(k0 + block, m)
+                            for p in p0..<p1 {
+                                let row = tr.pointer + (p - p0) * w, rowI = ti.pointer + (p - p0) * w
+                                let hasB = 2 * p + 1 < h
+                                for k in k0..<k1 {
+                                    let j = k == 0 ? 0 : w - k
+                                    let zre = row[k], zim = rowI[k], cre = row[j], cim = -rowI[j]
+                                    let at = k * h + 2 * p
+                                    br[at] = (zre + cre) * half
+                                    bi[at] = (zim + cim) * half
+                                    if hasB {
+                                        br[at + 1] = (zim - cim) * half
+                                        bi[at + 1] = (cre - zre) * half
+                                    }
+                                }
+                            }
+                            k0 = k1
+                        }
+                    } }
+                    p0 = p1
                 }
             }
-            // Split each pair into the two half spectra, written transposed (`m × h`): bin k of rows 2p and 2p + 1 is
-            // b[k * h + 2p] and b[k * h + 2p + 1].
-            let half = S(0.5)
-            outRe.withUnsafeMutableBufferPointer { brb in outIm.withUnsafeMutableBufferPointer { bib in
-                let br = brb.baseAddress!, bi = bib.baseAddress!
-                var k0 = 0
-                while k0 < m {
-                    let k1 = min(k0 + block, m)
-                    for p in 0..<pairs {
-                        let row = tr.pointer + p * w, rowI = ti.pointer + p * w
-                        let hasB = 2 * p + 1 < h
-                        for k in k0..<k1 {
-                            let j = k == 0 ? 0 : w - k
-                            let zre = row[k], zim = rowI[k], cre = row[j], cim = -rowI[j]
-                            let at = k * h + 2 * p
-                            br[at] = (zre + cre) * half
-                            bi[at] = (zim + cim) * half
-                            if hasB {
-                                br[at + 1] = (zim - cim) * half
-                                bi[at + 1] = (cre - zre) * half
-                            }
-                        }
-                    }
-                    k0 = k1
-                }
-            } }
         }
+        _ = consume real
         // Complex lines down the m columns, then back to `h × m`.
         let cr = Scratch<S>(m * h), ci = Scratch<S>(m * h)
         outRe.withUnsafeMutableBufferPointer { brb in outIm.withUnsafeMutableBufferPointer { bib in

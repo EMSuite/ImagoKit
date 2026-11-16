@@ -35,20 +35,25 @@ public nonisolated struct SpectrumDisplay: Sendable {
     /// Bins within this index distance of the centre never set the default window's white.
     public static let centreRadius = 3.0
 
-    /// v for every bin of `spectrum`, then the default window.
-    public static func make(_ spectrum: PowerSpectrum) -> SpectrumDisplay {
+    /// v for every bin of `spectrum`, then the default window. `spectrum` is consumed: handed over (a temporary, or `consume`),
+    /// its Float32 power becomes the values in place, so one full-size array is held, not two (ImagoKit#101, macEM#686).
+    public static func make(_ spectrum: consuming PowerSpectrum) -> SpectrumDisplay {
+        let w = spectrum.width, h = spectrum.height
         let power: [Float]
         switch spectrum.power {
         case .float32(let p): power = p
         case .float64(let p): power = p.map { Float($0) }
         }
-        return make(power: power, width: spectrum.width, height: spectrum.height)
+        _ = consume spectrum                    // `power` is now the only reference this function holds
+        return make(power: consume power, width: w, height: h)
     }
 
     /// v for every bin of the centred Float32 `power` (`width` × `height`, row-major, zero frequency at (h/2, w/2)), then the
     /// default window. One pass finds the range of the finite v and the white; a second fills the 2048-bin histogram. Scalar
     /// Double; the log is the only transcendental. An array of the wrong length gives an all-NaN display and no window.
-    public static func make(power: [Float], width w: Int, height h: Int) -> SpectrumDisplay {
+    /// `power` is consumed: handed over, its storage becomes the values (each bin is read once, then overwritten); a caller
+    /// that keeps it keeps it, and the values are a new array.
+    public static func make(power: consuming [Float], width w: Int, height h: Int) -> SpectrumDisplay {
         guard w >= 1, h >= 1, power.count == w * h else {
             return SpectrumDisplay(width: max(w, 0), height: max(h, 0), values: [], defaultWindow: nil)
         }
@@ -57,26 +62,24 @@ public nonisolated struct SpectrumDisplay: Sendable {
         let centreRow = h / 2, centreCol = w / 2
         let discSquared = Int(centreRadius * centreRadius)          // index distance > 3  ⇔  dx² + dy² > 9
 
-        var values = [Float](repeating: .nan, count: w * h)
+        var values = consume power
         var lowest = Float.infinity, highest = -Float.infinity      // the range of the finite v
         var white = -Float.infinity                                  // the largest finite v beyond the disc
         var finiteCount = 0
-        power.withUnsafeBufferPointer { power in
-            values.withUnsafeMutableBufferPointer { v in
-                for r in 0..<h {
-                    let dy = r - centreRow
-                    for c in 0..<w {
-                        if r == centreRow && c == centreCol { continue }           // the DC stays NaN
-                        let p = power[r * w + c]
-                        guard p > 0, p.isFinite else { continue }                 // zero or not finite: NaN, never −∞
-                        let x = Float(log10(Double(p) / scale))
-                        v[r * w + c] = x
-                        finiteCount += 1
-                        lowest = min(lowest, x)
-                        highest = max(highest, x)
-                        let dx = c - centreCol
-                        if dx * dx + dy * dy > discSquared { white = max(white, x) }
-                    }
+        values.withUnsafeMutableBufferPointer { v in
+            for r in 0..<h {
+                let dy = r - centreRow
+                for c in 0..<w {
+                    let p = v[r * w + c]
+                    // The DC, and a power that is zero or not finite: NaN, never −∞.
+                    guard !(r == centreRow && c == centreCol), p > 0, p.isFinite else { v[r * w + c] = .nan; continue }
+                    let x = Float(log10(Double(p) / scale))
+                    v[r * w + c] = x
+                    finiteCount += 1
+                    lowest = min(lowest, x)
+                    highest = max(highest, x)
+                    let dx = c - centreCol
+                    if dx * dx + dy * dy > discSquared { white = max(white, x) }
                 }
             }
         }
