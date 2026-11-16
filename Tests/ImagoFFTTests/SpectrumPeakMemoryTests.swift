@@ -1,7 +1,7 @@
 // ImagoKit#101 (macEM#686): the live heap a spectrum adds at its peak. An image handed over to `PowerSpectrum.compute` is freed
 // after the transform's row step, and `SpectrumDisplay.make` turns a handed-over spectrum's power into its values in place.
 // A sampler reads the heap's bytes in use while the call runs; the least peak of five runs is kept. Other suites run in this
-// process at the same time and their allocations raise a run's peak (CI saw about 0.4 of a full-size array of them), so the
+// process at the same time and their allocations raise a run's peak (CI read 1.51 where the arrays held come to 1⅛), so the
 // bound sits below the old rise with room above the new one: other suites can only raise an old run's reading above 2.
 import Darwin
 import Foundation
