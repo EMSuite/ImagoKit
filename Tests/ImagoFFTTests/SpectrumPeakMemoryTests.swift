@@ -1,7 +1,8 @@
 // ImagoKit#101 (macEM#686): the live heap a spectrum adds at its peak. An image handed over to `PowerSpectrum.compute` is freed
 // after the transform's row step, and `SpectrumDisplay.make` turns a handed-over spectrum's power into its values in place.
-// A sampler reads the heap's bytes in use while the call runs; the least peak of three runs is kept (other tests in this
-// process allocate too, which only ever raises a run's peak).
+// A sampler reads the heap's bytes in use while the call runs; the least peak of five runs is kept. Other suites run in this
+// process at the same time and their allocations raise a run's peak (CI saw about 0.4 of a full-size array of them), so the
+// bound sits below the old rise with room above the new one: other suites can only raise an old run's reading above 2.
 import Darwin
 import Foundation
 import ImagoCore
@@ -62,24 +63,24 @@ private func peakRise<T>(_ body: () throws -> T) rethrows -> (rise: Int, result:
 
     /// Red before: the image stayed until the call returned, beside the half spectrum and a full-size row scratch, then the
     /// column scratch — two full-size arrays above the input throughout. Now the row step adds the half spectrum and an
-    /// eighth, and the input goes before the column step: about 1⅛.
+    /// eighth, and the input goes before the column step: about 1⅛ (the bound is 1.75).
     @Test func aHandedOverImageGoesAfterTheRowStep() throws {
         var rises: [Int] = []
-        for _ in 0..<3 {
+        for _ in 0..<5 {
             var image: Micrograph? = try Self.image()
             let (rise, spectrum) = try peakRise { try PowerSpectrum.compute(image.take()!) }
             #expect(image == nil && spectrum.width == Self.w)
             rises.append(rise)
         }
         let least = Double(rises.min()!) / Double(Self.fullSize)
-        #expect(least < 1.5, "the spectrum rose \(least) full-size arrays above the handed-over image (was 2)")
+        #expect(least < 1.75, "the spectrum rose \(least) full-size arrays above the handed-over image (was 2)")
     }
 
     /// Red before: the display's values were a new array beside the power (one full-size array more). Now they are the power's
     /// own storage.
     @Test func aHandedOverSpectrumBecomesItsDisplay() throws {
         var rises: [Int] = []
-        for _ in 0..<3 {
+        for _ in 0..<5 {
             var spectrum: PowerSpectrum? = try PowerSpectrum.compute(Self.image())
             let (rise, display) = peakRise { SpectrumDisplay.make(spectrum.take()!) }
             #expect(spectrum == nil && display.values.count == Self.w * Self.h)
