@@ -6,6 +6,18 @@ Every number is held by regression tests against NumPy 2.5.4, SciPy 1.18.1 and s
 Entries from 0.8.1 on are written by release-please from the merged pull requests' titles. A moved fixture is listed under
 "Fixtures and tests" (a `test:` title, or one `test:` line per fixture in the pull request's commit override).
 
+## [0.11.0](https://github.com/macEMSuite/ImagoKit/compare/0.10.1...0.11.0) (2026-11-16)
+
+
+### Features
+
+* long operations stop when their task is cancelled ([#99](https://github.com/macEMSuite/ImagoKit/issues/99)) ([b3cdc14](https://github.com/macEMSuite/ImagoKit/commit/b3cdc14d77b453ad54178c9ed8afa1675853116f))
+
+
+### Performance Improvements
+
+* the spectrum frees its input after the row step and draws its display in place ([#102](https://github.com/macEMSuite/ImagoKit/issues/102)) ([d2c44af](https://github.com/macEMSuite/ImagoKit/commit/d2c44af4ecc1b6c9187a9e992d98a6ddb6bff21a))
+
 ## [0.10.1](https://github.com/macEMSuite/ImagoKit/compare/0.10.0...0.10.1) (2026-11-14)
 
 
