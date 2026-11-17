@@ -1,5 +1,5 @@
 // Public ImagoFilters and ImagoFFT calls refuse a bad parameter with a typed error, or answer without trapping, instead of
-// crashing (macEMSuite/ImagoKit#78). One test per site; each trapped or over-allocated before.
+// crashing (EMSuite/ImagoKit#78). One test per site; each trapped or over-allocated before.
 import Foundation
 import ImagoCore
 import ImagoFFT

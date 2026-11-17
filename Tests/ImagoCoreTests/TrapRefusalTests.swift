@@ -1,5 +1,5 @@
 // Public ImagoCore calls refuse a bad parameter with a typed error, or answer without trapping, instead of crashing
-// (macEMSuite/ImagoKit#78). One test per site; each trapped, looped or over-allocated before.
+// (EMSuite/ImagoKit#78). One test per site; each trapped, looped or over-allocated before.
 import Foundation
 import ImagoCore
 import Testing
