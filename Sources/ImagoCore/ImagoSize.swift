@@ -4,7 +4,7 @@
 //  ImagoCore
 //
 //  The checked pixel count of a rows × columns grid, for the guards that compare a buffer's count with it: a product that
-//  overflows Int is no grid, where `rows * columns` trapped (macEMSuite/ImagoKit#78).
+//  overflows Int is no grid, where `rows * columns` trapped (EMSuite/ImagoKit#78).
 //
 
 package nonisolated enum ImagoSize {
