@@ -1,10 +1,26 @@
-## What this changes
+Fixes EMSuite/<repo>#<n>
 
-## Why
+## What changes
 
-## Checklist
+<!-- In user words. The PR title is the CHANGELOG line (feat:, fix:, perf:, docs:, test:, refactor:, ci:, chore:); release-please writes the changelog, so no changelog line here. -->
 
-- [ ] `swift test -c release` passes
-- [ ] New or changed behaviour has tests that fail before the change and pass after it
-- [ ] If a pinned number moves, the fixture is updated in its own commit with the reason, and `CHANGELOG.md` says so
-- [ ] Documentation updated where behaviour changed
+## The test that failed before
+
+<!-- Name it. -->
+
+## Numbers
+
+- [ ] Unchanged
+- [ ] Changed: a before and after table below, the moved fixture in its own commit, the `changes-results` label
+
+## Screen
+
+- [ ] Unchanged
+- [ ] Snapshot attached
+- [ ] Unverified on screen
+
+## Docs
+
+- [ ] README, `docs/status.md`, `docs/parity.md` or the website page updated where they name what changed, or nothing names it
+
+<!-- feat!: only: a Migration paragraph saying what consumers change. -->
