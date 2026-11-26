@@ -19,10 +19,6 @@
 import Foundation
 
 public nonisolated enum TidyResultsCSV {
-    /// No writer uses this any more: the CSVs quote the reader notes after each validation sentence instead.
-    @available(*, deprecated, message: "The CSV writers now quote the reader notes after each validation sentence; this clause is no longer written.")
-    public static let unvalidatedClause = ", unvalidated (reader note)"
-
     /// What follows every validation sentence: `; reader note: <notes joined by "; ">`, or nothing without a note. Each note
     /// passes `CSVText.headerValue` (so a cell keeps one line), and blank notes are left out.
     static func readerNoteClause(_ notes: [String]) -> String {
