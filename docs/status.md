@@ -1,4 +1,4 @@
-# Status: ImagoKit 0.11.0 <!-- x-release-please-version -->
+# Status: ImagoKit 0.12.0 <!-- x-release-please-version -->
 
 ImagoKit 0.11.0 (2026-11-16), against NumPy 2.5.4, SciPy 1.18.1 and scikit-image 0.26.0. Live: the FFT surface (`fft2`, `rfft2`, `fftshift`, axes and norm), power spectra and
 spot measurement, Gaussian, uniform, difference-of-Gaussians, Butterworth (both with channels) and window filters (every `get_window` family), Fourier and spline-order shifts (constant and wrap modes too), phase correlation (plain and masked), HRTEM filter
