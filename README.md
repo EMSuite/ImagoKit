@@ -40,7 +40,7 @@ package is built and tested on macOS only. Linux is not supported yet.
 | `ImagoFFT` / `ImagoCore` | 1D `rfft`/`irfft`; a real-input 2D path and a mixed-radix Float64 plan (speed; same numbers) | `numpy.fft` | 0.8.0 |
 
 `docs/benchmarks.md` has the timings against the Python packages. Planned, not yet available: atom-column finding (in a
-module of its own); see [`ROADMAP.md`](ROADMAP.md).
+module of its own, #115). Open work is in the [issues](https://github.com/EMSuite/ImagoKit/issues).
 
 ## Complex 1D FFT
 
