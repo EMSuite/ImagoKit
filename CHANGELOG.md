@@ -6,6 +6,17 @@ Every number is held by regression tests against NumPy 2.5.4, SciPy 1.18.1 and s
 Entries from 0.8.1 on are written by release-please from the merged pull requests' titles. A moved fixture is listed under
 "Fixtures and tests" (a `test:` title, or one `test:` line per fixture in the pull request's commit override).
 
+## [0.12.0](https://github.com/EMSuite/ImagoKit/compare/0.11.0...0.12.0) (2026-11-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* TidyResultsCSV.unvalidatedClause is removed. No writer has written it since the CSVs quote the reader notes, and nothing in the suite reads it.
+
+### Code Refactoring
+
+* remove the unused TidyResultsCSV.unvalidatedClause; README and status name 0.11.0 ([#113](https://github.com/EMSuite/ImagoKit/issues/113)) ([7d042ec](https://github.com/EMSuite/ImagoKit/commit/7d042ec1f205bb436c7933b0245e2160f23c6887))
+
 ## [0.11.0](https://github.com/macEMSuite/ImagoKit/compare/0.10.1...0.11.0) (2026-11-16)
 
 
