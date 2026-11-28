@@ -1,7 +1,7 @@
 # Test fixtures
 
 One row per committed fixture file under `Tests/*/Fixtures/`: size, the script under `tools/` that names it (the generator or its
-pin script; a few scripts write a whole directory; a script found only by file-name prefix, tool-folder name or test module is marked so), and a note where the origin is not the kit's own pinned reference. 221 files.
+pin script; a few scripts write a whole directory; a script found only by file-name prefix, tool-folder name or test module is marked so), and a note where the origin is not the kit's own pinned reference. 263 files.
 
 Licence: every fixture is generated from this kit's own code and the pinned Python reference (named in the README) and ships under the kit's GPL-3.0-only licence, except the rows marked *third party*. No fixture is a real dataset: the committed text fixtures carry no personal path or name (checked by search), and real datasets are read from `$MACEM_DATA` and never copied into the repository.
 
@@ -37,6 +37,18 @@ under `tools/` that reads the pinned Python reference only.
 - `ImagoFFTTests/Fixtures/spot/x128-k5-o0.5_0.25-c1_-2.in.f32`
 - `ImagoFFTTests/Fixtures/spot/x128-k5-o0.5_0.5-c-2_0.in.f32`
 - `ImagoFFTTests/Fixtures/spot/x128-k5-o0_0-c2_2.in.f32`
+
+## Kikuchipy bundles (moved from Electron Microscopy Studio)
+
+The 42 files under `ImagoFiltersTests/Fixtures/kikuchipy/` are four reference bundles (`manifest.json` plus raw little-endian
+arrays) that Electron Microscopy Studio's `tools/parity/sem/emit.py` wrote against kikuchipy 0.13.1, scikit-image 0.26.0 and
+SciPy 1.18.1 (cases `m2/fft-filter-kikuchipy-h5ebsd`, `m2/fft-filter-nickel-ebsd-large`, `m2/clahe-kikuchipy-h5ebsd`,
+`m2/clahe-nickel-ebsd-large`). They moved with the FFT filter and CLAHE (ImagoKit#106) byte for byte: every file's sha256
+equals the app's and the manifest's, which `PatternFilterParityTests` checks. The kit has no kikuchipy generator, so they are
+frozen like the pins above; a changed bundle needs a generator under `tools/` first. Their inputs are nickel EBSD patterns
+(the 3 x 3 cut of kikuchipy's in-package h5ebsd test file and pattern (0, 0) of `nickel_ebsd_large`; Ånes, Hjelen, Sørensen,
+van Helvoort and Marthinsen (2019), Zenodo 10.5281/zenodo.7497682, CC BY 4.0, from the kikuchipy data repository), so these rows are *third party*: a few 60 x 60 patterns of a public dataset,
+not a dataset copied whole.
 
 ## All fixtures
 
@@ -260,6 +272,48 @@ under `tools/` that reads the pinned Python reference only.
 | `ImagoFiltersTests/Fixtures/hrtem/pct5-128.spectrum.f64` | 128.0 KB | `tools/filters/pins.py`, `tools/peaks/inf_pins.py`, `tools/peaks/pins.py` +1 (module only) |  |
 | `ImagoFiltersTests/Fixtures/hrtem/pct5-128.wiener.f64` | 128.0 KB | `tools/filters/pins.py`, `tools/peaks/inf_pins.py`, `tools/peaks/pins.py` +1 (module only) |  |
 | `ImagoFiltersTests/Fixtures/hrtem/pct5-128.wienermask.f64` | 128.0 KB | `tools/filters/pins.py`, `tools/peaks/inf_pins.py`, `tools/peaks/pins.py` +1 (module only) |  |
+| `ImagoFiltersTests/Fixtures/kikuchipy/clahe-kikuchipy-h5ebsd/default.bin` | 31.6 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/clahe-kikuchipy-h5ebsd/k10x12_clip0p01_nbins64.bin` | 31.6 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/clahe-kikuchipy-h5ebsd/k7_clip0p05_nbins256.bin` | 31.6 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/clahe-kikuchipy-h5ebsd/manifest.json` | 2.3 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/clahe-kikuchipy-h5ebsd/patterns.bin` | 31.6 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/clahe-nickel-ebsd-large/default.bin` | 3.5 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/clahe-nickel-ebsd-large/k10x12_clip0p01_nbins64.bin` | 3.5 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/clahe-nickel-ebsd-large/k7_clip0p05_nbins256.bin` | 3.5 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/clahe-nickel-ebsd-large/manifest.json` | 2.4 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/clahe-nickel-ebsd-large/patterns.bin` | 3.5 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/frequency_noshift.bin` | 31.6 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/frequency_noshift_values.bin` | 126.6 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/frequency_shift.bin` | 31.6 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/frequency_shift_values.bin` | 126.6 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/manifest.json` | 5.9 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/patterns.bin` | 31.6 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/spatial_asymmetric.bin` | 31.6 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/spatial_asymmetric_values.bin` | 126.6 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/spatial_gaussian.bin` | 31.6 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/spatial_gaussian_values.bin` | 126.6 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/transfer_function.bin` | 28.1 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/window_circular_5x7.bin` | 280 B | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/window_gaussian_5x5_std1.bin` | 200 B | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/window_highpass.bin` | 28.1 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/window_lowpass.bin` | 28.1 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-kikuchipy-h5ebsd/window_modified_hann_60.bin` | 480 B | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/frequency_noshift.bin` | 3.5 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/frequency_noshift_values.bin` | 14.1 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/frequency_shift.bin` | 3.5 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/frequency_shift_values.bin` | 14.1 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/manifest.json` | 5.9 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/patterns.bin` | 3.5 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/spatial_asymmetric.bin` | 3.5 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/spatial_asymmetric_values.bin` | 14.1 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/spatial_gaussian.bin` | 3.5 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/spatial_gaussian_values.bin` | 14.1 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/transfer_function.bin` | 28.1 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/window_circular_5x7.bin` | 280 B | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/window_gaussian_5x5_std1.bin` | 200 B | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/window_highpass.bin` | 28.1 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/window_lowpass.bin` | 28.1 KB | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
+| `ImagoFiltersTests/Fixtures/kikuchipy/fft-filter-nickel-ebsd-large/window_modified_hann_60.bin` | 480 B | Electron Microscopy Studio `tools/parity/sem/emit.py` (frozen, see above) | *third party*: kikuchipy 0.13.1 output on nickel patterns (CC BY 4.0, Ånes et al.) |
 | `ImagoFiltersTests/Fixtures/peak-inf-pins.json` | 8.8 KB | `tools/peaks/inf_pins.py` |  |
 | `ImagoFiltersTests/Fixtures/peak-pins.json` | 206.2 KB | `tools/peaks/pins.py` |  |
 | `ImagoFiltersTests/Fixtures/hrtem-filter-pins.json` | 5.0 KB | retired generator (frozen, see above) |  |
