@@ -391,6 +391,25 @@ check((try? Denoise.nonLocalMeans(flat, rows: 8, columns: 8, patchSize: 3, patch
       "public non-local means keeps a constant")
 do { _ = try Denoise.totalVariationChambolle(flat, rows: 8, columns: 8, maxNumIter: 0); check(false, "maxNumIter 0 is refused") }
 catch is DenoiseError { check(true, "maxNumIter 0 is refused") } catch { check(false, "maxNumIter 0: another error \(error)") }
+// The FFT filter (kikuchipy's EBSD.fft_filter) and CLAHE (scikit-image's equalize_adapthist) on an 8-bit ramp from 0 to 255.
+let ramp8 = (0..<64).map { $0 == 63 ? UInt8(255) : UInt8($0 * 4) }
+let unitTransfer = FFTFilter.Domain.frequency(transferFunction: [Double](repeating: 1, count: 64), shift: true)
+let kept = try FFTFilter.filter(ramp8, rows: 8, columns: 8, domain: unitTransfer)
+check(zip(kept, ramp8).allSatisfy { pair in abs(Int(pair.0) - Int(pair.1)) <= 1 },
+      "public FFT filter with a unit transfer function keeps a full-range 8-bit ramp within one grey level")
+let rampImage = try Micrograph(width: 8, height: 8, pixels: ramp8.map { Float($0) })
+let tapped = try FFTFilter.filter(rampImage, storedAs: UInt8.self, domain: .spatial(kernel: [1], rows: 1, columns: 1))
+check(tapped.width == 8 && tapped.height == 8, "public FFT filter of a Micrograph stored as UInt8")
+do { _ = try FFTFilter.filter(ramp8, rows: 8, columns: 8, domain: .frequency(transferFunction: [1])); check(false, "a wrong-size transfer function is refused") }
+catch let e as FFTFilterError { check(e == .shape, "public FFT filter refuses a wrong-size transfer function") }
+catch { check(false, "transfer function: another error \(error)") }
+let equalised = try AdaptiveHistogramEqualization.equalize(ramp8, rows: 8, columns: 8, kernel: (4, 4), clipLimit: 0.01)
+check(equalised.count == 64 && equalised.min() == 0 && equalised.max() == 255, "public CLAHE spans the 8-bit range")
+let claheKernel = AdaptiveHistogramEqualization.defaultKernel(rows: 60, columns: 80)
+check(claheKernel.rows == 20 && claheKernel.columns == 15, "public CLAHE default kernel is kikuchipy's")
+do { _ = try AdaptiveHistogramEqualization.equalize(ramp8, rows: 8, columns: 8, bins: 0); check(false, "0 bins is refused") }
+catch let e as AdaptiveHistogramEqualizationError { check(e == .parameter("bins"), "public CLAHE refuses 0 bins") }
+catch { check(false, "bins: another error \(error)") }
 // A perfect zero-mean two-fringe lattice, 8 cycles across 64 pixels on each axis (a mean would leak through the masks): no strain.
 let lattice: [Double] = (0..<4096).map {
     let (r, c) = (Double($0 / 64), Double($0 % 64))
