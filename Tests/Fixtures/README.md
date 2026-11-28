@@ -3,7 +3,7 @@
 One row per committed fixture file under `Tests/*/Fixtures/`: size, the script under `tools/` that names it (the generator or its
 pin script; a few scripts write a whole directory; a script found only by file-name prefix, tool-folder name or test module is marked so), and a note where the origin is not the kit's own pinned reference. 263 files.
 
-Licence: every fixture is generated from this kit's own code and the pinned Python reference (named in the README) and ships under the kit's GPL-3.0-only licence, except the rows marked *third party*. No fixture is a real dataset: the committed text fixtures carry no personal path or name (checked by search), and real datasets are read from `$MACEM_DATA` and never copied into the repository.
+Licence: every fixture is generated from this kit's own code and the pinned Python reference (named in the README) and ships under the kit's GPL-3.0-only licence, except the rows marked *third party*. No fixture is a whole real dataset (the kikuchipy rows below hold a few patterns of a public CC BY 4.0 dataset): the committed text fixtures carry no personal path or name (checked by search), and real datasets are read from `$MACEM_DATA` and never copied into the repository.
 
 ## Frozen pins (generator retired)
 

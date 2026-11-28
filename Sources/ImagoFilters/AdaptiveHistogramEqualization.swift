@@ -19,9 +19,10 @@ import ImagoCore
 
 /// Why an adaptive histogram equalisation cannot run.
 public nonisolated enum AdaptiveHistogramEqualizationError: Error, Equatable, Sendable {
-    /// A count does not match `rows * columns`, a size or kernel axis is below 1, or the type is not 8 or 16 bit.
+    /// A count does not match `rows * columns`, a size or kernel axis is below 1 or above 65 536, or the type is not 8 or 16
+    /// bit.
     case shape
-    /// `clipLimit` is negative or not finite, or `bins` is below 1; the text names it.
+    /// `clipLimit` is negative or not finite, or `bins` is below 1 or above 65 536; the text names it.
     case parameter(String)
     /// The equalised image is flat, so it cannot be rescaled (upstream divides by zero).
     case nonFinite
@@ -34,6 +35,8 @@ public nonisolated enum AdaptiveHistogramEqualizationError: Error, Equatable, Se
 public nonisolated enum AdaptiveHistogramEqualization {
     /// scikit-image's `NR_OF_GRAY`: the grey levels the image is quantised to before binning.
     static let grayLevels = 1 << 14
+    /// The largest kernel axis and bin count taken: far above any pattern, small enough that the padding cannot overflow.
+    static let maximumAxis = 1 << 16
 
     /// kikuchipy's default contextual region: `(signal_shape[0] // 4, signal_shape[1] // 4)` with HyperSpy's signal shape in
     /// (columns, rows) order, passed on as the (rows, columns) kernel — so (columns / 4, rows / 4) as (rows, columns), the same
@@ -63,9 +66,12 @@ public nonisolated enum AdaptiveHistogramEqualization {
             throw AdaptiveHistogramEqualizationError.shape
         }
         let k = kernel ?? defaultKernel(rows: rows, columns: columns)
-        guard k.rows >= 1, k.columns >= 1 else { throw AdaptiveHistogramEqualizationError.shape }
+        // A kernel larger than the image is upstream's too; the cap only keeps the padding arithmetic in range.
+        guard k.rows >= 1, k.columns >= 1, k.rows <= maximumAxis, k.columns <= maximumAxis else {
+            throw AdaptiveHistogramEqualizationError.shape
+        }
         guard clipLimit.isFinite, clipLimit >= 0 else { throw AdaptiveHistogramEqualizationError.parameter("clip limit") }
-        guard bins >= 1 else { throw AdaptiveHistogramEqualizationError.parameter("bins") }
+        guard bins >= 1, bins <= maximumAxis else { throw AdaptiveHistogramEqualizationError.parameter("bins") }
         // `img_as_uint`: 8-bit values scaled by 65535 / 255 = 257, 16-bit kept.
         let scale: Int
         switch P.bitWidth {
@@ -132,7 +138,8 @@ public nonisolated enum AdaptiveHistogramEqualization {
         // One histogram per contextual region of the hist grid, which starts k // 2 into the padded image.
         let hy = paddedRows / ky - 1, hx = paddedColumns / kx - 1
         let elements = ky * kx
-        let limit = clipLimit > 0 ? max(Int(clipLimit * Double(elements)), 1) : elements
+        // A limit of `elements` or more clips nothing (no bin holds more), so the factor is capped at 1 before the conversion.
+        let limit = clipLimit > 0 ? max(Int(min(clipLimit, 1) * Double(elements)), 1) : elements
         let levelScale = Double(grayLevels - 1 - 0) / Double(elements)
         var maps = [[Int]](repeating: [], count: hy * hx)
         for by in 0..<hy {

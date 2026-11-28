@@ -73,6 +73,10 @@ import Testing
         let ones = FFTFilter.Domain.frequency(transferFunction: [1, 1])
         #expect(throws: FFTFilterError.pixelValues) { try FFTFilter.filter(half, storedAs: UInt8.self, domain: ones) }
         #expect(throws: FFTFilterError.pixelValues) { try FFTFilter.filter(over, storedAs: UInt8.self, domain: ones) }
+        // UInt64's maximum is 2⁶⁴ as a Double, not a value of the type: refused instead of trapping in the cast.
+        #expect(throws: FFTFilterError.shape) {
+            try FFTFilter.filter(ramp.map { UInt64($0) }, rows: 5, columns: 5, domain: .frequency(transferFunction: [Double](repeating: 1, count: 25)))
+        }
     }
 
     @Test func theMicrographCallsKeepTheCalibrationAndTheNumbers() throws {
@@ -119,5 +123,20 @@ import Testing
         #expect(throws: AdaptiveHistogramEqualizationError.shape) {
             try AdaptiveHistogramEqualization.equalize(pixels.map { UInt32($0) }, rows: 8, columns: 8, kernel: (4, 4))
         }
+        #expect(throws: AdaptiveHistogramEqualizationError.shape) {
+            try AdaptiveHistogramEqualization.equalize(pixels, rows: 8, columns: 8, kernel: (Int.max, 1))
+        }
+        #expect(throws: AdaptiveHistogramEqualizationError.parameter("bins")) {
+            try AdaptiveHistogramEqualization.equalize(pixels, rows: 8, columns: 8, kernel: (4, 4), bins: 1 << 20)
+        }
+    }
+
+    /// A clip limit of one or more clips nothing, as no bin can hold more than the region's count: the same image as no limit,
+    /// and a huge limit does not trap in the conversion to a count.
+    @Test func claheHugeClipLimitClipsNothing() throws {
+        let pixels = (0..<64).map { UInt8(($0 * 37) % 64 * 4) }
+        let unclipped = try AdaptiveHistogramEqualization.equalize(pixels, rows: 8, columns: 8, kernel: (4, 4), clipLimit: 0)
+        let huge = try AdaptiveHistogramEqualization.equalize(pixels, rows: 8, columns: 8, kernel: (4, 4), clipLimit: 1e17)
+        #expect(huge == unclipped)
     }
 }

@@ -28,7 +28,7 @@ import ImagoCore
 /// Why an FFT filter cannot run.
 public nonisolated enum FFTFilterError: Error, Equatable, Sendable, LocalizedError {
     /// A count does not match `rows * columns`, a transfer function is not the image's shape, a kernel's count is not its
-    /// `rows * columns`, or a size is below 1.
+    /// `rows * columns`, a size is below 1, or the pixel type is wider than 16 bits.
     case shape
     /// The FFT for this shape could not be set up.
     case fftSetup
@@ -133,6 +133,8 @@ public nonisolated enum FFTFilter {
     public static func rescaledValues<P: FixedWidthInteger & UnsignedInteger>(
         _ pixels: [P], rows: Int, columns: Int, domain: Domain
     ) throws -> [Double] {
+        // 8-bit and 16-bit patterns, as kikuchipy's: a wider type's maximum (2⁶⁴ for UInt64) is not a value of the type.
+        guard P.bitWidth <= 16 else { throw FFTFilterError.shape }
         let p = pixels.map { Double($0) }
         let filtered: [Double]
         switch domain {
