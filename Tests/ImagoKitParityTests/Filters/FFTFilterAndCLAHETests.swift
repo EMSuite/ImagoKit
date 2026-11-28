@@ -175,7 +175,7 @@ func fftFilterMatchesKikuchipy(_ name: String) throws {
 @Test func fftFilterOfNickelPatternZeroAsKikuchipy() throws {
     let bundle = try KikuchipyBundle("fft-filter-nickel-ebsd-large")
     let p = try bundle.patterns()
-    let domain = FFTFilter.Domain.frequency(transferFunction: try bundle.array("transfer_function").values, shift: true)
+    let domain = try FFTFilter.Domain.frequency(transferFunction: bundle.array("transfer_function").values, shift: true)
     let one = Array(p.data[0..<(p.rows * p.columns)])
     let ours = try FFTFilter.filter(one, rows: p.rows, columns: p.columns, domain: domain)
     try expectWithinOneGrey(ours, bundle.array("frequency_shift"), fraction: 0.002, "F4")

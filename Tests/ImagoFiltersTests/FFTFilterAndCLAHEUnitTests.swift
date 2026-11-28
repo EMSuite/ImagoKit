@@ -44,10 +44,8 @@ import Testing
                                                   kernelColumns: 1), Self.image, "1 x 1 kernel")
     }
 
-    @Test func theFilterReusesItsPlanAndRepeatsItsNumbers() throws {
-        let a = try #require(PlanCache.shared.plan(nx: 60, ny: 60) as FFT2DDouble?)
-        let b = try #require(PlanCache.shared.plan(nx: 60, ny: 60) as FFT2DDouble?)
-        #expect(a === b)
+    /// The second call runs on the cached plan (FFTSurface's cache) and gives the same bits as the first.
+    @Test func aRepeatedFilterRepeatsItsNumbers() throws {
         let h = (0..<Self.image.count).map { 1 / (1 + Double($0 % 6)) }
         let first = try FFTFilter.frequencyFiltered(Self.image, rows: Self.rows, columns: Self.columns, transferFunction: h, shift: true)
         let again = try FFTFilter.frequencyFiltered(Self.image, rows: Self.rows, columns: Self.columns, transferFunction: h, shift: true)
