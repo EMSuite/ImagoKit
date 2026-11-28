@@ -6,6 +6,13 @@ Every number is held by regression tests against NumPy 2.5.4, SciPy 1.18.1 and s
 Entries from 0.8.1 on are written by release-please from the merged pull requests' titles. A moved fixture is listed under
 "Fixtures and tests" (a `test:` title, or one `test:` line per fixture in the pull request's commit override).
 
+## [0.13.0](https://github.com/EMSuite/ImagoKit/compare/0.12.0...0.13.0) (2026-11-28)
+
+
+### Features
+
+* FFT pattern filter and contrast-limited adaptive histogram equalisation ([#118](https://github.com/EMSuite/ImagoKit/issues/118)) ([af10af3](https://github.com/EMSuite/ImagoKit/commit/af10af34e59a0e247c95135fc2af7163ea07e56e))
+
 ## [0.12.0](https://github.com/EMSuite/ImagoKit/compare/0.11.0...0.12.0) (2026-11-26)
 
 
