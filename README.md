@@ -12,7 +12,7 @@ background-subtraction and Wiener filters, drift correction and stack alignment,
 object statistics, denoising, FFT filtering and adaptive histogram equalisation, zoom and rotate, and GPA strain. Each number is defined once, pinned against the Python
 packages the field already uses, and checked against planted lattices whose answer is known.
 
-**Status: pre-release (0.x), current version 0.12.0.** <!-- x-release-please-version --> Four modules: `ImagoCore`, `ImagoFFT`, `ImagoFilters` and
+**Status: pre-release (0.x), current version 0.13.0.** <!-- x-release-please-version --> Four modules: `ImagoCore`, `ImagoFFT`, `ImagoFilters` and
 `ImagoAlignment`; most functions have a Float32 and a Float64 path. The supported functions, set against the reference
 packages' documented API, are listed in [`docs/parity.md`](docs/parity.md); the API reference is the
 [DocC site](https://emsuite.github.io/ImagoKit/documentation/). The definitions and validation notes behind each number
@@ -83,7 +83,7 @@ NumPy 2.5.4 pins cover lengths 1, 2, 4, 8, 64, 256 and 1024. The tests state the
 ```text
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/EMSuite/ImagoKit.git", from: "0.12.0"), // x-release-please-version
+    .package(url: "https://github.com/EMSuite/ImagoKit.git", from: "0.13.0"), // x-release-please-version
 ],
 targets: [
     .target(name: "MyApp", dependencies: [

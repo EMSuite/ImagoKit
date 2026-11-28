@@ -10,8 +10,8 @@ authors:
   - family-names: Lobpreis
     given-names: Paul
 license: GPL-3.0-only
-version: 0.12.0 # x-release-please-version
-date-released: 2026-11-26 # x-release-please-date
+version: 0.13.0 # x-release-please-version
+date-released: 2026-11-28 # x-release-please-date
 repository-code: "https://github.com/EMSuite/ImagoKit"
 keywords:
   - electron microscopy
