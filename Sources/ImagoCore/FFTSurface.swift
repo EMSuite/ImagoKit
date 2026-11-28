@@ -49,15 +49,16 @@ public nonisolated struct ComplexImage<Scalar: BinaryFloatingPoint & Sendable>: 
 
 /// The last few plans `FFTSurface` built, so a loop of same-size calls (a stack of frames, the six transforms of a masked
 /// registration) pays for the setup once, as NumPy's cached plans do. A plan is immutable and documented shareable across
-/// threads; the cache holds at most `capacity` of them and drops the oldest.
-nonisolated private final class PlanCache: @unchecked Sendable {
-    static let shared = PlanCache()
+/// threads; the cache holds at most `capacity` of them and drops the oldest. `package` so the filters that run many same-size
+/// transforms (`FFTFilter` on every pattern of a scan) share it rather than keep a second cache.
+package nonisolated final class PlanCache: @unchecked Sendable {
+    package static let shared = PlanCache()
     private let lock = NSLock()
     private let capacity = 6
     private var double: [(nx: Int, ny: Int, plan: FFT2DDouble)] = []
     private var single: [(nx: Int, ny: Int, plan: FFT2D)] = []
 
-    func plan(nx: Int, ny: Int) -> FFT2DDouble? {
+    package func plan(nx: Int, ny: Int) -> FFT2DDouble? {
         lock.lock(); defer { lock.unlock() }
         if let hit = double.first(where: { $0.nx == nx && $0.ny == ny }) { return hit.plan }
         guard let plan = FFT2DDouble(nx: nx, ny: ny) else { return nil }
@@ -66,7 +67,7 @@ nonisolated private final class PlanCache: @unchecked Sendable {
         return plan
     }
 
-    func plan(nx: Int, ny: Int) -> FFT2D? {
+    package func plan(nx: Int, ny: Int) -> FFT2D? {
         lock.lock(); defer { lock.unlock() }
         if let hit = single.first(where: { $0.nx == nx && $0.ny == ny }) { return hit.plan }
         guard let plan = FFT2D(nx: nx, ny: ny) else { return nil }
