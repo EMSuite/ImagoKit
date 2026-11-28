@@ -3,7 +3,8 @@ Copyright (c) 2026 Paul Lobpreis
 
 Licensed under the GNU General Public License v3.0 only (SPDX: GPL-3.0-only;
 LICENSE). Parts port BSD-3-Clause code from scikit-image and SciPy (listed
-below); their licence texts are in Licenses/.
+below); their licence texts are in Licenses/. Two filters port kikuchipy,
+GPL-3.0-or-later, taken under GPL-3.0 (listed below).
 
 No number computed by this library is validated on a microscope: agreement with
 NumPy and SciPy, recovery of planted lattices and stated closed forms are what is
@@ -17,7 +18,7 @@ GPL-3.0 (licence chosen by the maintainers, 2026-10-16)
 The entire package is licensed GPL-3.0-only, including all four modules. The Python
 reference packages remain independently licensed. They are run as oracles; where
 a file ports one of their algorithms, it is named in "Ports of scikit-image and
-SciPy" below and the BSD-3-Clause notice is kept.
+SciPy" below and the BSD-3-Clause notice is kept, or in "Ports of kikuchipy".
 
 
 ================================================================================
@@ -88,6 +89,10 @@ BSD-3-Clause; Licenses/scikit-image.txt):
   ImagoFilters/PeakLocalMax.swift   feature.peak_local_max
   ImagoFilters/Bandpass.swift       filters.butterworth,
                                     difference_of_gaussians
+  ImagoFilters/AdaptiveHistogramEqualization.swift
+                                    exposure.equalize_adapthist
+                                    (skimage/exposure/_adapthist.py,
+                                    Copyright (C) 1994 Karel Zuiderveld)
   ImagoAlignment/PhaseCorrelation.swift and MaskedRegistration.swift
                                     registration.phase_cross_correlation
 
@@ -113,9 +118,37 @@ notices are kept here and in Licenses/.
 
 
 ================================================================================
+Ports of kikuchipy (GPL-3.0-or-later, taken under GPL-3.0)
+================================================================================
+
+kikuchipy 0.13.1 (https://github.com/pyxem/kikuchipy), Copyright (C) 2019-2026
+the kikuchipy developers, GPL-3.0-or-later; this package takes it under
+GPL-3.0, its own licence (LICENSE):
+  ImagoFilters/FFTFilter.swift      EBSD.fft_filter: pattern._pattern.fft_filter,
+                                    filters.fft_barnes._fft_filter (Barnes et
+                                    al. 2016), pattern.chunk.fft_filter
+  ImagoFilters/AdaptiveHistogramEqualization.swift
+                                    EBSD.adaptive_histogram_equalization
+                                    (the rescale and default kernel around
+                                    scikit-image's equalize_adapthist)
+
+Both moved from Electron Microscopy Studio
+(github.com/EMSuite/Electron-Microscopy-Studio,
+Sources/TEMSEM/Patterns/PatternFilters.swift and
+AdaptiveHistogramEqualization.swift), the copyright holder's own ports, with
+no step changed (ImagoKit#106). Their test bundles under
+Tests/ImagoFiltersTests/Fixtures/kikuchipy/ hold kikuchipy 0.13.1's output on
+nickel EBSD patterns by H. W. Ånes et al. (2019), Zenodo
+10.5281/zenodo.7497682, CC BY 4.0 (Tests/Fixtures/README.md).
+
+
+================================================================================
 The oracles (run by the fixture generators under tools/)
 ================================================================================
 
 NumPy 2.5.4        Copyright (c) 2005-2025, NumPy Developers. BSD-3-Clause.
 SciPy 1.18.1       Copyright (c) 2001-2002 Enthought, Inc. 2003, SciPy Developers. BSD-3-Clause.
 scikit-image 0.26.0 Copyright (c) 2009-2022 the scikit-image team. BSD-3-Clause.
+kikuchipy 0.13.1   Copyright (C) 2019-2026 the kikuchipy developers. GPL-3.0-or-later.
+                   Not run by a generator here: its four bundles were written by
+                   Electron Microscopy Studio's tools/parity/sem/emit.py and moved.

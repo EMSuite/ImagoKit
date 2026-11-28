@@ -1,7 +1,7 @@
 # ``ImagoFilters``
 
-Filters for high-resolution TEM images, and the image filters, thresholds, peak finding, denoising and strain mapping
-around them.
+Filters for high-resolution TEM images, and the image filters, FFT filter, adaptive histogram equalisation, thresholds, peak
+finding, denoising and strain mapping around them.
 
 ``HRTEMFilter`` implements the average background subtraction filter (ABSF) and the Wiener filter of R. Kilaas, J. Microsc.
 190 (1998) 45–51, in the steps D. R. G. Mitchell's DigitalMicrograph script describes: an iterative estimate of the amorphous
@@ -27,6 +27,17 @@ SciPy's `gaussian_filter` and `uniform_filter`, scikit-image's `butterworth` and
 - ``BandpassFilters``
 - ``WindowFunction``
 - ``WindowType``
+
+### FFT filter and adaptive histogram equalisation
+
+kikuchipy 0.13.1's `EBSD.fft_filter` (a transfer function in the frequency domain, or a kernel correlated through the
+padded FFT after Barnes et al. 2016), and scikit-image 0.26.0's `exposure.equalize_adapthist` (CLAHE, Zuiderveld 1994) with
+kikuchipy's `EBSD.adaptive_histogram_equalization` around it, for one 8-bit or 16-bit image, in Float64.
+
+- ``FFTFilter``
+- ``FFTFilterError``
+- ``AdaptiveHistogramEqualization``
+- ``AdaptiveHistogramEqualizationError``
 
 ### Thresholding
 

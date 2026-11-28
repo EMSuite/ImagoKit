@@ -9,7 +9,7 @@
 Image analysis for electron micrographs, in Swift, for macOS and iPadOS: the Fourier transform of an image with its
 calibration, lattice spacings and angles measured from FFT spots, Bragg (masked inverse FFT) filtering, the HRTEM
 background-subtraction and Wiener filters, drift correction and stack alignment, thresholds, morphology, segmentation and
-object statistics, denoising, zoom and rotate, and GPA strain. Each number is defined once, pinned against the Python
+object statistics, denoising, FFT filtering and adaptive histogram equalisation, zoom and rotate, and GPA strain. Each number is defined once, pinned against the Python
 packages the field already uses, and checked against planted lattices whose answer is known.
 
 **Status: pre-release (0.x), current version 0.12.0.** <!-- x-release-please-version --> Four modules: `ImagoCore`, `ImagoFFT`, `ImagoFilters` and
@@ -38,6 +38,7 @@ package is built and tested on macOS only. Linux is not supported yet.
 | `ImagoFilters` | `Denoise` (total variation by Chambolle and Bregman, non-local means); `GeometricPhaseAnalysis` (GPA strain; planted truth only, not validated on real data) | `skimage.restoration`; planted lattices | 0.8.0 |
 | `ImagoAlignment` | `ImageResampling`: `zoom` and `rotate` (2D, orders 0 to 5) | `scipy.ndimage.zoom`, `rotate` | 0.8.0 |
 | `ImagoFFT` / `ImagoCore` | 1D `rfft`/`irfft`; a real-input 2D path and a mixed-radix Float64 plan (speed; same numbers) | `numpy.fft` | 0.8.0 |
+| `ImagoFilters` | `FFTFilter` (an image filtered through its FFT by a transfer function, or by a kernel through the padded FFT, rescaled to its integer type) and `AdaptiveHistogramEqualization` (CLAHE), for 8-bit and 16-bit images | `kikuchipy.signals.EBSD.fft_filter` and `adaptive_histogram_equalization` (kikuchipy 0.13.1), `skimage.exposure.equalize_adapthist` | next minor |
 
 `docs/benchmarks.md` has the timings against the Python packages. Planned, not yet available: atom-column finding (in a
 module of its own, #115). Open work is in the [issues](https://github.com/EMSuite/ImagoKit/issues).

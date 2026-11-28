@@ -8,7 +8,7 @@ a micrograph user reaches for, walked from the sources on disk (the pinned envir
 scikit-image 0.26.0 wheel ships no test files, so there its functions are held to `assert_allclose` dtype defaults.
 Numerics are never held stricter than that; readers, I/O, indices and metadata are exact.
 
-**Totals: 93 rows of the Python counterparts: 36 present, 12 partial, 45 missing.** By priority: 39 study, 34 useful, 20 not planned. (At 0.7.0: 87 rows, 27 present, 11 partial, 49 missing; at 0.6.0: 77 rows, 17 present, 13 partial, 47 missing; at 0.5.0: 32 rows, 17 present, 8 partial, 7 missing.) The kit-only rows at the end are not counted.
+**Totals: 97 rows of the Python counterparts: 40 present, 12 partial, 45 missing.** By priority: 43 study, 34 useful, 20 not planned. (At 0.12.0: 93 rows, 36 present, 12 partial, 45 missing; at 0.7.0: 87 rows, 27 present, 11 partial, 49 missing; at 0.6.0: 77 rows, 17 present, 13 partial, 47 missing; at 0.5.0: 32 rows, 17 present, 8 partial, 7 missing.) The kit-only rows at the end are not counted.
 
 
 ## NumPy 2.5.4, `numpy.fft`
@@ -151,7 +151,8 @@ Numerics are never held stricter than that; readers, I/O, indices and metadata a
 | `transform.AffineTransform`, `EuclideanTransform`, `SimilarityTransform`, `ProjectiveTransform`, `PolynomialTransform`, `PiecewiseAffineTransform`, `ThinPlateSplineTransform`, `estimate_transform`, `matrix_transform`, `swirl` | missing |  | scikit-image 0.26.0 ships no tests in its wheel: assert_allclose dtype defaults (rtol 1e-7 f64, 1e-5 f32) | not planned | no consumer |
 | `transform.hough_*`, `radon`, `iradon`, `iradon_sart`, `frt2`, `ifrt2`, `pyramid_*`, `integral_image`, `integrate`, `order_angles_golden_ratio` | missing |  | scikit-image 0.26.0 ships no tests in its wheel: assert_allclose dtype defaults (rtol 1e-7 f64, 1e-5 f32) | not planned |  |
 | `exposure.rescale_intensity`, `adjust_gamma`, `adjust_log`, `adjust_sigmoid`, `equalize_hist`, `cumulative_distribution`, `match_histograms`, `is_low_contrast` | missing |  | scikit-image 0.26.0 ships no tests in its wheel: assert_allclose dtype defaults (rtol 1e-7 f64, 1e-5 f32) | useful | `DisplayNormalization` covers display only |
-| `exposure.equalize_adapthist`, `exposure.histogram` | missing |  | scikit-image 0.26.0 ships no tests in its wheel: assert_allclose dtype defaults (rtol 1e-7 f64, 1e-5 f32) | not planned |  |
+| `exposure.equalize_adapthist` (`kernel_size`, `clip_limit`, `nbins`) of a uint8 or uint16 image (Zuiderveld 1994) | present (next minor) | `AdaptiveHistogramEqualization.equalizedUnit`, `equalize` | exact (uint8): the integer steps reproduced and the mappings interpolated in float32 in scikit-image's order, as it computes them | study | moved from Electron Microscopy Studio (ImagoKit#106); 2¹⁴-level quantisation rounded half to even, reflect padding, the clip-limit redistribution of `clip_histogram`; `kernel_size` defaults to kikuchipy's `(columns / 4, rows / 4)` as (rows, columns), not scikit-image's 1/8; float images, `channel_axis` and N-D absent; 3 settings on 10 patterns (kikuchipy bundles `m2/clahe-*`) |
+| `exposure.histogram` | missing |  | scikit-image 0.26.0 ships no tests in its wheel: assert_allclose dtype defaults (rtol 1e-7 f64, 1e-5 f32) | not planned |  |
 | `segmentation.clear_border` | present (0.7.0) | `BinaryMorphology.clearBorder` | exact (mask) | study | 8-connected objects, `buffer_size` 0 and 2; the `mask=` and label-image forms are not ported |
 | `segmentation.watershed` (2D, markers, `mask`, `connectivity` 1 and 2, `compactness`, `watershed_line`) | partial (0.8.0) | `Segmentation.watershed` (`compactness:`, `watershedLine:`), `Segmentation.markers` | scikit-image 0.26.0 ships no tests in its wheel: labels exact | study | pinned on 23 cases (smooth, integer-tied, masked, distance-transform markers; 12 tie-heavy stress cases check the heap order); `compactness` and `watershed_line` held (#46, `tools/watershed-compact`, labels exact, tie-heavy cases; the compact value is fused as the arm64 build computes it); `markers=None`/int, `offset` and N-D missing |
 | `segmentation.expand_labels`, `relabel_sequential`, `find_boundaries`, `flood`, `flood_fill` | missing |  | scikit-image 0.26.0 ships no tests in its wheel: assert_allclose dtype defaults (rtol 1e-7 f64, 1e-5 f32) | useful |  |
@@ -159,6 +160,24 @@ Numerics are never held stricter than that; readers, I/O, indices and metadata a
 | `morphology.remove_small_objects`, `remove_small_holes` (`max_size`, `connectivity` 1 and 2; a boolean mask) | present (0.7.0) | `BinaryMorphology.removeSmallObjects/removeSmallHoles` | exact (mask) | study | `max_size=N` removes area <= N (the pre-0.26 `min_size=M` is `N = M - 1`) |
 | `morphology.binary_erosion`, `_dilation`, `_opening`, `_closing` (the deprecated 0.26 forms, default footprint, `mode`) | present (0.7.0) | `BinaryMorphology.skimageErosion` etc. | exact (mask) | study | `mode='ignore'` (a true border for erosion, false for dilation), `min`, `max`; the footprint sequences are not ported |
 | `morphology.disk`, `square`, `skeletonize`, `thin`, `medial_axis`, `convex_hull_image`, and the rest | missing |  | scikit-image 0.26.0 ships no tests in its wheel: assert_allclose dtype defaults (rtol 1e-7 f64, 1e-5 f32) | not planned | revisit with the next consumer |
+
+## kikuchipy 0.13.1, `EBSD` filters of one pattern
+
+Moved from Electron Microscopy Studio with their tests (ImagoKit#106; its `docs/parity.md` rows "Pattern filters", tolerances
+unchanged). References: the bundles `m2/fft-filter-*` and `m2/clahe-*` under `Tests/ImagoFiltersTests/Fixtures/kikuchipy/`
+(kikuchipy 0.13.1, scikit-image 0.26.0, SciPy 1.18.1) on a 3 x 3 cut of nickel patterns and on pattern (0, 0) of
+`nickel_ebsd_large`, each carrying its input patterns and kikuchipy's own transfer function and kernels; tests in
+`ImagoKitParityTests/Filters/FFTFilterAndCLAHETests.swift`. kikuchipy's FFTs run in float32 and its rescaling in float32
+numba fastmath, so the float64 port agrees within one grey level where an upstream value lands on the other side of an
+integer, and exactly where upstream's arithmetic is reproduced (CLAHE). The filters work on any image; nothing in them is
+specific to a diffraction pattern. kikuchipy's own test files were not walked for these rows: the tolerances are the
+measured bounds the app set (D-SEM-18's one-grey-level rule).
+
+| Function or option group | State | Kit symbol | Counterpart tolerance (source) | Priority | Notes |
+|---|---|---|---|---|---|
+| `EBSD.fft_filter(function_domain="frequency", shift=)`, `pattern._pattern.fft_filter` | present (next minor) | `FFTFilter.frequencyFiltered`, `FFTFilter.rescaledValues` / `filter` with `.frequency` | values before the cast: the bundle's rtol 1e-5, atol 1e-3 grey levels (measured 7.4e-6 relative); uint8 within one grey level on at most 1 % of the pixels (measured 0.005 % of all 4125 nickel patterns with the guide's lowpass x highpass filter; nickel pattern (0, 0) on at most 0.2 %) | study | full complex FFT on `FFT2DDouble`, plans shared through `FFTSurface`'s plan cache; with `shift` the transfer function's centre (`shape // 2`) multiplies the zero frequency; rescaled from the image's own range to 0 ... `P.max` and truncated; uint8 and uint16, or a `Micrograph` of their stored values; float output types absent |
+| `EBSD.fft_filter(function_domain="spatial")`, `filters.fft_barnes._fft_filter` (Barnes et al. 2016) | present (next minor) | `FFTFilter.spatialFiltered`, `FFTFilter.rescaledValues` / `filter` with `.spatial` | as the frequency row (measured 0.004 % of all patterns with the 5 x 5 Gaussian, at most 0.22 % of a pattern with the 3 x 4 asymmetric kernel) | study | correlation under nearest-edge reads; padded to image + kernel − 1 per axis, not SciPy's `next_fast_len` (the crop never reads the extra zeros); the asymmetric kernel pins the flip and the even-size offsets; kikuchipy's `Window` constructors (lowpass, highpass, Gaussian, ...) stay in the app: the caller passes the array |
+| `EBSD.adaptive_histogram_equalization(kernel_size, clip_limit, nbins)` | present (next minor) | `AdaptiveHistogramEqualization.equalize` | exact (uint8) | study | scikit-image's `equalize_adapthist` (row above) then `rescale_intensity` to the type, truncated; default kernel `defaultKernel` |
 
 ## Not from a Python package
 
