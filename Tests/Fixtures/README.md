@@ -44,7 +44,7 @@ The 42 files under `ImagoFiltersTests/Fixtures/kikuchipy/` are four reference bu
 arrays) that Electron Microscopy Studio's `tools/parity/sem/emit.py` wrote against kikuchipy 0.13.1, scikit-image 0.26.0 and
 SciPy 1.18.1 (cases `m2/fft-filter-kikuchipy-h5ebsd`, `m2/fft-filter-nickel-ebsd-large`, `m2/clahe-kikuchipy-h5ebsd`,
 `m2/clahe-nickel-ebsd-large`). They moved with the FFT filter and CLAHE (ImagoKit#106) byte for byte: every file's sha256
-equals the app's and the manifest's, which `PatternFilterParityTests` checks. The kit has no kikuchipy generator, so they are
+equals the app's and the manifest's, which `FFTFilterAndCLAHETests` checks. The kit has no kikuchipy generator, so they are
 frozen like the pins above; a changed bundle needs a generator under `tools/` first. Their inputs are nickel EBSD patterns
 (the 3 x 3 cut of kikuchipy's in-package h5ebsd test file and pattern (0, 0) of `nickel_ebsd_large`; Ånes, Hjelen, Sørensen,
 van Helvoort and Marthinsen (2019), Zenodo 10.5281/zenodo.7497682, CC BY 4.0, from the kikuchipy data repository), so these rows are *third party*: a few 60 x 60 patterns of a public dataset,
